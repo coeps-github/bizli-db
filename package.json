@@ -1,0 +1,44 @@
+{
+  "name": "@coeps/bizli-db",
+  "version": "0.0.1",
+  "description": "simple and small in memory database with random access file persistence",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib/**/*"
+  ],
+  "scripts": {
+    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
+    "lint": "tslint -p tsconfig.json",
+    "test": "jest --config jestconfig.json",
+    "build": "tsc",
+    "start": "jest --config jestconfig.json --watch",
+    "pipeline": "npm run format && npm run lint && npm run test && npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coeps-github/bizli-db.git"
+  },
+  "keywords": [
+    "Database",
+    "Memory",
+    "File"
+  ],
+  "author": "Raphael Felber",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/coeps-github/bizli-db/issues"
+  },
+  "homepage": "https://github.com/coeps-github/bizli-db#readme",
+  "devDependencies": {
+    "@types/jest": "^24.0.23",
+    "codecov": "^3.6.1",
+    "jest": "^24.9.0",
+    "prettier": "^1.19.1",
+    "ts-jest": "^24.1.0",
+    "tslint": "^5.20.1",
+    "tslint-config-prettier": "^1.18.0",
+    "typescript": "^3.7.2"
+  },
+  "dependencies": {}
+}
