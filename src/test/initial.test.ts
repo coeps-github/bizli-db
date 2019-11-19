@@ -1,5 +1,5 @@
 import { whereTheNameComesFrom } from '../index';
 
-test('My Greeter', () => {
+test('whereTheNameComesFrom', () => {
   expect(whereTheNameComesFrom()).toBe('bizli-db = only a little bit db, in swiss german');
 });
