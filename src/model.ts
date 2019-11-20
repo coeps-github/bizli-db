@@ -7,6 +7,12 @@ export interface IConfig {
    * default 0
    */
   readonly minChanges: number;
+  /*
+   * Maximum amount of time in ms to wait until writing changes, if any
+   * especially useful in combination with high minChanges values
+   * default 0
+   */
+  readonly maxTimeMs: number;
   readonly maxHistory: number; // 0 is infinite, default 0
   readonly maxSizeBytes: number; // 0 is infinite, default 0
   readonly rotate: number; // 0 is no rotation, default 0
@@ -28,7 +34,7 @@ export interface IBizliDb<TState> {
 }
 
 export interface IQuery<TState, TSubState> {
-  readonly selectFn: (state: TState) => TSubState;
+  readonly selectFn?: (state: TState) => TSubState;
   // TODO: Add query stuff
 }
 
