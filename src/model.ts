@@ -1,33 +1,37 @@
 import { Observable } from 'rxjs';
 
-export interface IBizliDb {
-  create:
-    <TID, TObject extends TID, TResult extends TID>
-    (object: TObject) => Observable<TResult>;
-  read:
-    <TID, TQuery, TResult extends TID>
-    (query: TQuery) => Observable<TResult>;
-  update:
-    <TID, TObject extends TID, TResult extends TID>
-    (object: TObject) => Observable<TResult>;
-  delete:
-    <TID, TResult extends TID>
-    (id: TID) => Observable<TResult>;
+export interface IConfig {
+  /*
+   * < 2 means every change is written to a temp file, when writing succeeded, the current file is replaced by the temp file
+   * higher values improve write performance, but also increase the risk of data loss
+   * default 0
+   */
+  readonly minChanges: number;
+  readonly maxHistory: number; // 0 is infinite, default 0
+  readonly maxSizeBytes: number; // 0 is infinite, default 0
+  readonly rotate: number; // 0 is no rotation, default 0
+  readonly compress: boolean; // zip rotated files
+}
 
-  createAll:
-    <TID, TObject extends TID, TResult extends TID>
-    (objects: Observable<TObject>) => Observable<TResult>;
-  readAll:
-    <TID, TQuery, TResult extends TID>
-    (queries: Observable<TQuery>) => Observable<TResult>;
-  updateAll:
-    <TID, TObject extends TID, TResult extends TID>
-    (objects: Observable<TObject>) => Observable<TResult>;
-  deleteAll:
-    <TID, TResult extends TID>
-    (ids: Observable<TID>) => Observable<TResult>;
+export interface IBizliDb<TState> {
+  readonly create: (object: TState) => Observable<TState>;
+  readonly read: <TSubState>(query: IQuery<TState, TSubState>) => Observable<TSubState>;
+  readonly readWhenChanged: <TSubState>(query: IQuery<TState, TSubState>) => Observable<TSubState>;
+  readonly update: (object: TState) => Observable<TState>;
+  readonly delete: <TSubState>(selectFn: (state: TState) => TSubState) => Observable<TState>;
 
-  readWhenChanged:
-    <TID, TQuery, TResult extends TID>
-    (query: TQuery) => Observable<TResult>;
+  readonly createAll: (objects: Observable<TState>) => Observable<TState>;
+  readonly readAll: <TSubState>(queries: Observable<IQuery<TState, TSubState>>) => Observable<TSubState>;
+  readonly readAllWhenChanged: <TSubState>(queries: Observable<IQuery<TState, TSubState>>) => Observable<TSubState>;
+  readonly updateAll: (objects: Observable<TState>) => Observable<TState>;
+  readonly deleteAll: <TSubState>(selectFns: Observable<(state: TState) => TSubState>) => Observable<TState>;
+}
+
+export interface IQuery<TState, TSubState> {
+  readonly selectFn: (state: TState) => TSubState;
+  // TODO: Add query stuff
+}
+
+export interface IFile<TState> {
+  readonly data: TState[]
 }

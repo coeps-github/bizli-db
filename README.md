@@ -8,4 +8,7 @@ simple and small in memory database with random access file persistence
 
 ## how it works
 
-The idea was based on https://codeburst.io/doing-without-databases-in-the-21st-century-6e25cf495373
+The idea was based on:
+- redux / ngrx
+- logfiles
+- https://codeburst.io/doing-without-databases-in-the-21st-century-6e25cf495373
