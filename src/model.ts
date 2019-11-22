@@ -1,43 +1,36 @@
 import { Observable } from 'rxjs';
 
-export interface IConfig {
-  /*
-   * < 2 means every change is written to a temp file, when writing succeeded, the current file is replaced by the temp file
-   * higher values improve write performance, but also increase the risk of data loss
-   * default 0
-   */
-  readonly minChanges: number;
-  /*
-   * Maximum amount of time in ms to wait until writing changes, if any
-   * especially useful in combination with high minChanges values
-   * default 0
-   */
-  readonly maxTimeMs: number;
+export interface Config {
   readonly maxHistory: number; // 0 is infinite, default 0
   readonly maxSizeBytes: number; // 0 is infinite, default 0
   readonly rotate: number; // 0 is no rotation, default 0
   readonly compress: boolean; // zip rotated files
 }
 
-export interface IBizliDb<TState> {
-  readonly create: (object: TState) => Observable<TState>;
-  readonly read: <TSubState>(query: IQuery<TState, TSubState>) => Observable<TSubState>;
-  readonly readWhenChanged: <TSubState>(query: IQuery<TState, TSubState>) => Observable<TSubState>;
-  readonly update: (object: TState) => Observable<TState>;
-  readonly delete: <TSubState>(selectFn: (state: TState) => TSubState) => Observable<TState>;
-
-  readonly createAll: (objects: Observable<TState>) => Observable<TState>;
-  readonly readAll: <TSubState>(queries: Observable<IQuery<TState, TSubState>>) => Observable<TSubState>;
-  readonly readAllWhenChanged: <TSubState>(queries: Observable<IQuery<TState, TSubState>>) => Observable<TSubState>;
-  readonly updateAll: (objects: Observable<TState>) => Observable<TState>;
-  readonly deleteAll: <TSubState>(selectFns: Observable<(state: TState) => TSubState>) => Observable<TState>;
+export interface BizliDb<TState, TActionType extends string> {
+  readonly dispatch: Dispatcher<TActionType>;
+  readonly select: Selector<TState>;
 }
 
-export interface IQuery<TState, TSubState> {
-  readonly selectFn?: (state: TState) => TSubState;
-  // TODO: Add query stuff
-}
-
-export interface IFile<TState> {
+export interface File<TState> {
   readonly data: TState[]
 }
+
+export type Dispatcher<TActionType extends string> = (action: Action<TActionType>) => void;
+export type Selector<TState> = <TSubState>(select: Select<TState, TSubState>) => Observable<TSubState>;
+
+export type Select<TState, TSubState> = (state: TState) => TSubState;
+
+export interface Action<TActionType extends string> {
+  readonly type: TActionType
+}
+
+export type ActionReducer<TState, TActionType extends string, TAction extends Action<TActionType> = Action<TActionType>> =
+  (state: TState | null, action: TAction) => TState;
+
+export type ActionReducerMap<TState, TActionType extends string, TAction extends Action<TActionType> = Action<TActionType>> = {
+  [p in keyof TState]: ActionReducer<TState, TActionType, TAction>;
+};
+
+export type ActionReducerFactory<TState, TActionType extends string, TAction extends Action<TActionType> = Action<TActionType>> =
+  (reducerMap: ActionReducerMap<TState, TActionType, TAction>, initialState?: Partial<TState>) => ActionReducer<TState, TActionType, TAction>;
