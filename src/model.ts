@@ -29,7 +29,7 @@ export type ActionReducer<TState, TActionType extends string, TAction extends Ac
   (state: TState | null, action: TAction) => TState;
 
 export type ActionReducerMap<TState, TActionType extends string, TAction extends Action<TActionType> = Action<TActionType>> = {
-  [p in keyof TState]: ActionReducer<TState, TActionType, TAction>;
+  [p in keyof TState]: ActionReducer<TState[p], TActionType, TAction>;
 };
 
 export type ActionReducerFactory<TState, TActionType extends string, TAction extends Action<TActionType> = Action<TActionType>> =
