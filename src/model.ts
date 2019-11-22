@@ -25,12 +25,12 @@ export interface Action<TActionType extends string> {
   readonly type: TActionType
 }
 
-export type ActionReducer<TState, TActionType extends string, TAction extends Action<TActionType> = Action<TActionType>> =
-  (state: TState | null, action: TAction) => TState;
+export type ActionReducer<TState, TActionType extends string> =
+  (state: TState | undefined, action: Action<TActionType | BizliDbActions>) => TState;
 
-export type ActionReducerMap<TState, TActionType extends string, TAction extends Action<TActionType> = Action<TActionType>> = {
-  [p in keyof TState]: ActionReducer<TState[p], TActionType, TAction>;
+export type ActionReducerMap<TState, TActionType extends string> = {
+  [p in keyof TState]: ActionReducer<TState[p], TActionType>;
 };
 
-export type ActionReducerFactory<TState, TActionType extends string, TAction extends Action<TActionType> = Action<TActionType>> =
-  (reducerMap: ActionReducerMap<TState, TActionType, TAction>, initialState?: Partial<TState>) => ActionReducer<TState, TActionType, TAction>;
+export type BizliDbActions = 'BIZLI-DB-INIT';
+export const BizliDbInitAction: Action<BizliDbActions> = { type: 'BIZLI-DB-INIT' };
