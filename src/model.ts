@@ -32,7 +32,7 @@ export interface TypedAction<TActionType extends string> extends Action {
 }
 
 export type ActionReducer<TState, TActionType extends string> =
-  (action: Actions<TActionType>, state?: TState) => TState;
+  (action: Actions<TActionType>, state?: Partial<TState>) => TState;
 
 export type ActionReducerMap<TState, TActionType extends string> = {
   [p in keyof TState]: ActionReducer<TState[p], TActionType>;

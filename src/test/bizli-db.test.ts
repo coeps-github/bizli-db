@@ -1,7 +1,7 @@
-import { combineReducers } from '../helpers';
-import { ActionReducerMap, Actions, BizliDbActions, BizliDbInitAction } from '../model';
+import { BizliDbImpl } from '../bizli-db';
+import { ActionReducerMap, Actions, BizliDbActions } from '../model';
 
-test('combineReducers', () => {
+test('bizli-db', () => {
   interface State {
     subState1: SubState1,
     subState2: SubState2
@@ -43,6 +43,7 @@ test('combineReducers', () => {
   };
   const initialStateUndefined = undefined;
   const initialStateEmpty: Partial<State> = {};
+  const initialSubState1Empty: Partial<SubState1> = {};
   const expectedState: State = {
     subState1: {
       value1: 'test1',
@@ -52,10 +53,8 @@ test('combineReducers', () => {
     },
   };
 
-  const combinedReducer = combineReducers(reducerMap);
-  const resultingState1 = combinedReducer(BizliDbInitAction, initialStateUndefined);
-  const resultingState2 = combinedReducer(BizliDbInitAction, initialStateEmpty);
-
-  expect(resultingState1).toEqual(expectedState);
-  expect(resultingState2).toEqual(expectedState);
+  const bizliDbSingleReducerUndefined = new BizliDbImpl(reducer1, initialStateUndefined);
+  const bizliDbSingleReducerEmpty = new BizliDbImpl(reducer1, initialSubState1Empty);
+  const bizliDbReducerMapUndefined = new BizliDbImpl(reducerMap, initialStateUndefined);
+  const bizliDbReducerMapEmpty = new BizliDbImpl(reducerMap, initialStateEmpty);
 });
