@@ -1,40 +1,54 @@
-import { Observable, Subject } from 'rxjs';
-import { map, take } from 'rxjs/operators';
+import { BehaviorSubject, combineLatest, Observable, Subject } from 'rxjs';
+import { filter, map, skipWhile, take, takeUntil } from 'rxjs/operators';
 import * as winston from 'winston';
 import { Logger } from 'winston';
 import { combineReducers } from './helpers';
 import { ActionReducer, ActionReducerMap, Actions, BizliDb, BizliDbInitAction, Select } from './model';
 
 export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<TState, TActionType> {
-  private states: Subject<TState>;
-  private reducer: ActionReducer<TState, TActionType>;
-  private actions: Subject<Actions<TActionType>>;
+  private reducer: BehaviorSubject<ActionReducer<TState, TActionType>>;
+  private states: BehaviorSubject<TState | undefined>;
+  private actions: BehaviorSubject<Actions<TActionType>>;
+  private destroy: Subject<void>;
   private logger: Logger;
 
-  constructor(
-    actionReducer: ActionReducer<TState, TActionType> |
-      ActionReducerMap<TState, TActionType>,
-    initialState?: Partial<TState>,
-  ) {
-    this.reducer = typeof actionReducer === 'function' ? actionReducer : combineReducers(actionReducer);
-    this.states = new Subject<TState>();
-    this.actions = new Subject<Actions<TActionType>>();
+  constructor() {
+    this.reducer = new BehaviorSubject<ActionReducer<TState, TActionType>>(() => ({} as TState));
+    this.states = new BehaviorSubject<TState | undefined>(undefined);
+    this.actions = new BehaviorSubject<Actions<TActionType>>(BizliDbInitAction);
+    this.destroy = new Subject();
     this.logger = this.createLogger();
 
-    this.states.subscribe(state => {
+    this.reducer.pipe(
+      takeUntil(this.destroy),
+    ).subscribe(reducer => {
+      this.logger.debug('ReducerChanged', reducer);
+      this.states.pipe(take(1)).subscribe(state => this.states.next(reducer(state, BizliDbInitAction)));
+    }, error => {
+      this.logger.error(error);
+    });
+
+    this.states.pipe(
+      takeUntil(this.destroy),
+    ).subscribe(state => {
       this.logger.debug('StateChanged', state);
     }, error => {
       this.logger.error(error);
     });
 
-    this.states.next(this.reducer(BizliDbInitAction, initialState));
-
-    this.actions.subscribe(action => {
+    this.actions.pipe(
+      takeUntil(this.destroy),
+    ).subscribe(action => {
       this.logger.debug('ActionReceived', action);
-      this.states.pipe(take(1)).subscribe(state => this.states.next(this.reducer(action, state)));
+      combineLatest([this.states, this.reducer]).pipe(take(1)).subscribe(([state, reducer]) => this.states.next(reducer(state, action)));
     }, error => {
       this.logger.error(error);
     });
+  }
+
+  public reduce(reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>) {
+    const actionReducer = typeof reducer === 'function' ? reducer : combineReducers(reducer);
+    this.reducer.next(actionReducer);
   }
 
   public dispatch(action: Actions<TActionType>) {
@@ -42,7 +56,23 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
   }
 
   public select<TSubState>(select: Select<TState, TSubState>): Observable<TSubState> {
-    return this.states.pipe(map(state => select(state)));
+    return this.states.pipe(
+      takeUntil(this.destroy),
+      skipWhile(state => !state),
+      map(state => select(state || {} as TState)),
+    );
+  }
+
+  public observe(actions: Array<string | TActionType>): Observable<Actions<TActionType>> {
+    return this.actions.pipe(
+      takeUntil(this.destroy),
+      filter(action => actions.includes(action.type)),
+    );
+  }
+
+  public dispose() {
+    this.destroy.next();
+    this.destroy.complete();
   }
 
   private createLogger() {
