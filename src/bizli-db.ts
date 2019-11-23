@@ -1,35 +1,40 @@
-import { BehaviorSubject, combineLatest, Observable, Subject } from 'rxjs';
-import { filter, map, skipWhile, take, takeUntil } from 'rxjs/operators';
+import { BehaviorSubject, Observable, Subject } from 'rxjs';
+import { filter, map, takeUntil, withLatestFrom } from 'rxjs/operators';
 import * as winston from 'winston';
 import { Logger } from 'winston';
 import { combineReducers } from './helpers';
-import { ActionReducer, ActionReducerMap, Actions, BizliDb, BizliDbInitAction, Select } from './model';
+import { Action, ActionReducer, ActionReducerMap, Actions, BizliDb, BizliDbInitAction, Select } from './model';
 
 export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<TState, TActionType> {
-  private reducer: BehaviorSubject<ActionReducer<TState, TActionType>>;
+  private reducers: BehaviorSubject<ActionReducer<TState, TActionType> | undefined>;
   private states: BehaviorSubject<TState | undefined>;
-  private actions: BehaviorSubject<Actions<TActionType>>;
+  private actions: BehaviorSubject<Actions<TActionType> | undefined>;
   private destroy: Subject<void>;
   private logger: Logger;
 
   constructor() {
-    this.reducer = new BehaviorSubject<ActionReducer<TState, TActionType>>(() => ({} as TState));
+    this.reducers = new BehaviorSubject<ActionReducer<TState, TActionType> | undefined>(undefined);
     this.states = new BehaviorSubject<TState | undefined>(undefined);
-    this.actions = new BehaviorSubject<Actions<TActionType>>(BizliDbInitAction);
+    this.actions = new BehaviorSubject<Actions<TActionType> | undefined>(undefined);
     this.destroy = new Subject();
     this.logger = this.createLogger();
 
-    this.reducer.pipe(
+    this.reducers.pipe(
       takeUntil(this.destroy),
+      filter(reducer => !!reducer),
     ).subscribe(reducer => {
       this.logger.debug('ReducerChanged', reducer);
-      this.states.pipe(take(1)).subscribe(state => this.states.next(reducer(state, BizliDbInitAction)));
+      if (reducer) {
+        this.states.next(undefined);
+        this.states.next(reducer(undefined, BizliDbInitAction));
+      }
     }, error => {
       this.logger.error(error);
     });
 
     this.states.pipe(
       takeUntil(this.destroy),
+      filter(state => !!state),
     ).subscribe(state => {
       this.logger.debug('StateChanged', state);
     }, error => {
@@ -38,9 +43,13 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
 
     this.actions.pipe(
       takeUntil(this.destroy),
-    ).subscribe(action => {
+      withLatestFrom(this.states, this.reducers),
+      filter(([action, , reducer]) => !!action && !!reducer),
+    ).subscribe(([action, state, reducer]) => {
       this.logger.debug('ActionReceived', action);
-      combineLatest([this.states, this.reducer]).pipe(take(1)).subscribe(([state, reducer]) => this.states.next(reducer(state, action)));
+      if (action && reducer) {
+        this.states.next(reducer(state, action));
+      }
     }, error => {
       this.logger.error(error);
     });
@@ -48,25 +57,29 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
 
   public reduce(reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>) {
     const actionReducer = typeof reducer === 'function' ? reducer : combineReducers(reducer);
-    this.reducer.next(actionReducer);
+    this.reducers.next(actionReducer);
   }
 
   public dispatch(action: Actions<TActionType>) {
     this.actions.next(action);
   }
 
-  public select<TSubState>(select: Select<TState, TSubState>): Observable<TSubState> {
+  public select<TSubState>(select?: Select<TState, TSubState>): Observable<TState | TSubState> {
     return this.states.pipe(
       takeUntil(this.destroy),
-      skipWhile(state => !state),
-      map(state => select(state || {} as TState)),
+      filter(state => !!state),
+      map(state => {
+        const stateDefined = state || {} as TState;
+        return select ? select(stateDefined) : stateDefined;
+      }),
     );
   }
 
   public observe(actions: Array<string | TActionType>): Observable<Actions<TActionType>> {
     return this.actions.pipe(
       takeUntil(this.destroy),
-      filter(action => actions.includes(action.type)),
+      filter(action => !!action && actions.includes(action.type)),
+      map(action => action || {} as Action),
     );
   }
 

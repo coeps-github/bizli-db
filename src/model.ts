@@ -21,7 +21,7 @@ export interface File<TState> {
 
 export type Reducer<TState, TActionType extends string> = (reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>) => void;
 export type Dispatcher<TActionType extends string> = (action: Actions<TActionType>) => void;
-export type Selector<TState> = <TSubState>(select: Select<TState, TSubState>) => Observable<TSubState>;
+export type Selector<TState> = <TSubState>(select?: Select<TState, TSubState>) => Observable<TState | TSubState>;
 export type Observer<TActionType extends string> = (actions: Array<string | TActionType>) => Observable<Actions<TActionType>>;
 
 export type Select<TState, TSubState> = (state: TState) => TSubState;

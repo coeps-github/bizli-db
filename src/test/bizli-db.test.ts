@@ -1,3 +1,5 @@
+import { take } from 'rxjs/operators';
+import { BizliDbImpl } from '../bizli-db';
 import { ActionReducerMap, Actions, BizliDbActions } from '../model';
 
 interface State {
@@ -54,12 +56,31 @@ const expectedSubState1: SubState1 = {
 };
 
 describe('bizli-db', () => {
-  test('BizliDbImpl should add a single reducer including initialState', () => {
-
+  test('BizliDbImpl should add a single reducer including initialState', done => {
+    const bizliDb = new BizliDbImpl();
+    bizliDb.reduce((state = { value: 'hoi' }) => state);
+    bizliDb.select().pipe(take(1)).subscribe(state => {
+      expect(state).toEqual({ value: 'hoi' });
+      done();
+    });
   });
 
-  test('BizliDbImpl should add a reducer map including initialState', () => {
+  test('BizliDbImpl should add a single reducer including initialState by init action', done => {
+    const bizliDb = new BizliDbImpl();
+    bizliDb.reduce(reducer1);
+    bizliDb.select().pipe(take(1)).subscribe(state => {
+      expect(state).toEqual(expectedSubState1);
+      done();
+    });
+  });
 
+  test('BizliDbImpl should add a reducer map including initialState by init action', done => {
+    const bizliDb = new BizliDbImpl();
+    bizliDb.reduce(reducerMap);
+    bizliDb.select().pipe(take(1)).subscribe(state => {
+      expect(state).toEqual(expectedState);
+      done();
+    });
   });
 
   test('BizliDbImpl should dispatch an action without reducer, the action is observable', () => {
