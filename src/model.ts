@@ -16,21 +16,27 @@ export interface File<TState> {
   readonly data: TState[]
 }
 
-export type Dispatcher<TActionType extends string> = (action: Action<TActionType>) => void;
+export type Dispatcher<TActionType extends string> = (action: Actions<TActionType>) => void;
 export type Selector<TState> = <TSubState>(select: Select<TState, TSubState>) => Observable<TSubState>;
 
 export type Select<TState, TSubState> = (state: TState) => TSubState;
 
-export interface Action<TActionType extends string> {
+export type Actions<TActionType extends string> = Action | TypedAction<TActionType>
+
+export interface Action {
+  readonly type: string;
+}
+
+export interface TypedAction<TActionType extends string> extends Action {
   readonly type: TActionType
 }
 
 export type ActionReducer<TState, TActionType extends string> =
-  (state: TState | undefined, action: Action<TActionType | BizliDbActions>) => TState;
+  (action: Actions<TActionType>, state?: TState) => TState;
 
 export type ActionReducerMap<TState, TActionType extends string> = {
   [p in keyof TState]: ActionReducer<TState[p], TActionType>;
 };
 
 export type BizliDbActions = 'BIZLI-DB-INIT';
-export const BizliDbInitAction: Action<BizliDbActions> = { type: 'BIZLI-DB-INIT' };
+export const BizliDbInitAction: TypedAction<BizliDbActions> = { type: 'BIZLI-DB-INIT' };

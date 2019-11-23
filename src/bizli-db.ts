@@ -1,6 +1,6 @@
 import { Observable, of } from 'rxjs';
 import { combineReducers } from './helpers';
-import { Action, ActionReducer, ActionReducerMap, BizliDb, BizliDbInitAction, Select } from './model';
+import { ActionReducer, ActionReducerMap, Actions, BizliDb, BizliDbInitAction, Select } from './model';
 
 export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<TState, TActionType> {
   private state: TState;
@@ -12,10 +12,10 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
     initialState?: Partial<TState>,
   ) {
     this.reducer = typeof actionReducer === 'function' ? actionReducer : combineReducers(actionReducer);
-    this.state = this.reducer(initialState as TState, BizliDbInitAction);
+    this.state = this.reducer(BizliDbInitAction, initialState as TState);
   }
 
-  public dispatch(action: Action<TActionType>) {
+  public dispatch(action: Actions<TActionType>) {
     // TODO: impl
   }
 
