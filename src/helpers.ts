@@ -1,8 +1,9 @@
 import * as fs from 'fs';
 import { NoParamCallback, PathLike, WriteFileOptions } from 'fs';
+import * as fsPath from 'path';
 import { bindNodeCallback, Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { ActionReducer, ActionReducerMap, Actions } from './model';
+import { ActionReducer, ActionReducerMap, Actions, LogLevel } from './model';
 
 export function combineReducers<TState, TActionType extends string>(
   actionReducerMap: ActionReducerMap<TState, TActionType>,
@@ -43,4 +44,19 @@ export function writeFile(filePath: string, fileData: string, fileEncoding: stri
     callback: NoParamCallback,
   ) => fs.writeFile(path, data, options, callback));
   return writeFileBinder(filePath, fileData, { encoding: fileEncoding });
+}
+
+export function createFilePath(path: string, fileName: string): string {
+  return fsPath.join(fsPath.resolve(path), fileName);
+}
+
+export function mustBeLogged(logLevel: LogLevel, minimumLogLevel?: LogLevel): boolean {
+  switch (minimumLogLevel) {
+    case 'error':
+      return logLevel === 'error';
+    case 'debug':
+      return logLevel === 'error' || logLevel === 'info' || logLevel === 'debug';
+    default:
+      return logLevel === 'error' || logLevel === 'info';
+  }
 }

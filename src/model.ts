@@ -17,12 +17,12 @@ export interface BizliDb<TState, TActionType extends string> {
 export interface Config {
   readonly fileName: string;
   readonly path: string;
-  readonly reloadFile: boolean; // default false
-  readonly maxHistory: number; // 0 is infinite, default 0
-  readonly maxSizeBytes: number; // 0 is infinite, default 0
-  readonly rotate: number; // 0 is no rotation, default 0
-  readonly compress: boolean; // zip rotated files
   readonly logLevel: LogLevel; // default info
+  // TODO: Maybe ... KISS YAGNI
+  // readonly maxHistory: number; // 0 is infinite, default 0
+  // readonly maxSizeBytes: number; // 0 is infinite, default 0
+  // readonly rotate: number; // 0 is no rotation, default 0
+  // readonly compress: boolean; // zip rotated files
 }
 
 export interface FileHandler<TState, TActionType extends string> {

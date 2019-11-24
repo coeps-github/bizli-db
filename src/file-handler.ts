@@ -1,6 +1,6 @@
-import { BehaviorSubject, Observable, of, Subject } from 'rxjs';
+import { BehaviorSubject, combineLatest, Observable, of, Subject } from 'rxjs';
 import { exhaustMap, filter, map, take, takeUntil, tap, withLatestFrom } from 'rxjs/operators';
-import { fileExists, readFile, writeFile } from './helpers';
+import { createFilePath, fileExists, mustBeLogged, readFile, writeFile } from './helpers';
 import { ActionReducer, Actions, Config, File, FileHandler, Log } from './model';
 
 export class FileHandlerImpl<TState, TActionType extends string> implements FileHandler<TState, TActionType> {
@@ -22,10 +22,10 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
         this.logs.next({ level: 'debug', name: 'file-handler ConfigChanged', message: JSON.stringify(config) });
       }),
       exhaustMap(config =>
-        fileExists(config && (config.path + config.fileName) || '').pipe(
+        fileExists(config && createFilePath(config.path, config.fileName) || '').pipe(
           exhaustMap(exists => {
             if (exists) {
-              return readFile(config && (config.path + config.fileName) || '', 'utf8').pipe(
+              return readFile(config && createFilePath(config.path, config.fileName) || '', 'utf8').pipe(
                 tap(fileString => this.logs.next({
                   level: 'debug',
                   message: fileString,
@@ -55,13 +55,10 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
       takeUntil(this.destroy),
       filter(file => !!file),
       map(file => JSON.stringify(file)),
-      tap(fileString => {
-        this.logs.next({ level: 'debug', name: 'file-handler FileChanged', message: fileString });
-      }),
       withLatestFrom(this.configs),
       filter(([, config]) => !!config),
       exhaustMap(([fileString, config]) =>
-        writeFile(config && (config.path + config.fileName) || '', fileString, 'utf8'),
+        writeFile(config && createFilePath(config.path, config.fileName) || '', fileString, 'utf8'),
       ),
     ).subscribe(() => {
       // Nothing
@@ -77,8 +74,8 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
     this.logs.pipe(
       takeUntil(this.destroy),
       filter(log => !!log),
-    ).subscribe(() => {
-      // Nothing
+    ).subscribe(log => {
+      this.log(log || {} as Log);
     }, error => {
       // tslint:disable-next-line:no-console
       console.log(JSON.stringify({
@@ -128,13 +125,15 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
   }
 
   public log(log: Log) {
-    this.files.pipe(
+    combineLatest([this.configs, this.files]).pipe(
       take(1),
-    ).subscribe(file => {
-      this.files.next({
-        ...file,
-        logs: file && file.logs ? [...file.logs, log] : [log],
-      } as File<TState, TActionType>);
+    ).subscribe(([config, file]) => {
+      if (mustBeLogged(log.level, config && config.logLevel)) {
+        this.files.next({
+          ...file,
+          logs: file && file.logs ? [...file.logs, log] : [log],
+        } as File<TState, TActionType>);
+      }
     });
   }
 
