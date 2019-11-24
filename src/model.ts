@@ -1,12 +1,17 @@
 import { Observable } from 'rxjs';
 
 export interface BizliDb<TState, TActionType extends string> {
-  readonly configure: Configurator<TState, TActionType>;
-  readonly reduce: Reducer<TState, TActionType>;
-  readonly dispatch: Dispatcher<TActionType>;
-  readonly select: Selector<TState>;
-  readonly observe: Observer<TActionType>;
-  readonly dispose: () => void;
+  configure(config: Config): void;
+
+  reduce(reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>): void;
+
+  dispatch(action: Actions<TActionType>): void;
+
+  select<TSubState>(select?: Select<TState, TSubState>): Observable<TState | TSubState>;
+
+  observe(actions: Array<string | TActionType>): Observable<Actions<TActionType>>;
+
+  dispose(): void;
 }
 
 export interface Config {
@@ -21,13 +26,19 @@ export interface Config {
 }
 
 export interface FileHandler<TState, TActionType extends string> {
-  readonly configure: FileConfigurator<TState, TActionType>;
-  readonly reduce: FileReducer<TState, TActionType>;
-  readonly dispatch: FileDispatcher<TActionType>;
-  readonly changeState: FileStateChanger<TState>;
-  readonly log: FileLogger;
-  readonly observe: FileObserver<TState, TActionType>;
-  readonly dispose: () => void;
+  configure(config: Config): void;
+
+  reduce(reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>): void;
+
+  dispatch(action: Actions<TActionType>): void;
+
+  changeState(state: TState): void;
+
+  log(log: Log): void;
+
+  observe(): Observable<File<TState, TActionType>>;
+
+  dispose(): void;
 }
 
 export interface File<TState, TActionType extends string> {
@@ -37,19 +48,6 @@ export interface File<TState, TActionType extends string> {
   readonly states: TState[];
   readonly logs: Log[];
 }
-
-export type Configurator<TState, TActionType extends string> = (config: Config) => void;
-export type Reducer<TState, TActionType extends string> = (reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>) => void;
-export type Dispatcher<TActionType extends string> = (action: Actions<TActionType>) => void;
-export type Selector<TState> = <TSubState>(select?: Select<TState, TSubState>) => Observable<TState | TSubState>;
-export type Observer<TActionType extends string> = (actions: Array<string | TActionType>) => Observable<Actions<TActionType>>;
-
-export type FileConfigurator<TState, TActionType extends string> = (config: Config) => void;
-export type FileReducer<TState, TActionType extends string> = (reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>) => void;
-export type FileDispatcher<TActionType extends string> = (action: Actions<TActionType>) => void;
-export type FileStateChanger<TState> = (state: TState) => void;
-export type FileLogger = (log: Log) => void;
-export type FileObserver<TState, TActionType extends string> = () => Observable<File<TState, TActionType>>;
 
 export type Select<TState, TSubState> = (state: TState) => TSubState;
 
