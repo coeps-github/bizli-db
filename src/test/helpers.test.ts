@@ -1,5 +1,5 @@
 import { combineReducers } from '../helpers';
-import { ActionReducerMap, Actions, BizliDbActions, BizliDbInitAction } from '../model';
+import { ActionReducerMap, Actions } from '../model';
 
 interface State {
   subState1: SubState1,
@@ -14,9 +14,9 @@ interface SubState2 {
   value2: string
 }
 
-const reducer1 = (state = {} as SubState1, action: Actions<BizliDbActions>) => {
+const reducer1 = (state = {} as SubState1, action: Actions<'test'>) => {
   switch (action.type) {
-    case 'BIZLI-DB-INIT': {
+    case 'test': {
       return {
         ...state,
         value1: 'test1',
@@ -25,9 +25,9 @@ const reducer1 = (state = {} as SubState1, action: Actions<BizliDbActions>) => {
   }
   return state;
 };
-const reducer2 = (state: any, action: Actions<BizliDbActions>) => {
+const reducer2 = (state: any, action: Actions<'test'>) => {
   switch (action.type) {
-    case 'BIZLI-DB-INIT': {
+    case 'test': {
       return {
         ...state,
         value2: 'test2',
@@ -36,7 +36,7 @@ const reducer2 = (state: any, action: Actions<BizliDbActions>) => {
   }
   return state;
 };
-const reducerMap: ActionReducerMap<State, BizliDbActions> = {
+const reducerMap: ActionReducerMap<State, 'test'> = {
   subState1: reducer1,
   subState2: reducer2,
 };
@@ -53,7 +53,7 @@ const expectedState: State = {
 describe('helpers', () => {
   test('combineReducers should combine reducers happy case', () => {
     const combinedReducer = combineReducers(reducerMap);
-    const resultingState = combinedReducer(initialState, BizliDbInitAction);
+    const resultingState = combinedReducer(initialState, { type: 'test' });
 
     expect(resultingState).toEqual(expectedState);
   });

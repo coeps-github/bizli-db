@@ -7,6 +7,6 @@ export function combineReducers<TState, TActionType extends string>(
     return Object.keys(actionReducerMap).reduce((nextState, key) => {
       (nextState as any)[key] = (actionReducerMap as any)[key]((state || {} as any)[key], action);
       return nextState;
-    }, {} as TState);
+    }, { ...state } as TState);
   };
 }

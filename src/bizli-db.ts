@@ -1,71 +1,123 @@
-import { BehaviorSubject, Observable, Subject } from 'rxjs';
-import { filter, map, take, takeUntil, withLatestFrom } from 'rxjs/operators';
-import * as winston from 'winston';
-import { Logger } from 'winston';
+import { BehaviorSubject, combineLatest, Observable, Subject } from 'rxjs';
+import { filter, map, take, takeUntil } from 'rxjs/operators';
+import { FileHandlerImpl } from './file-handler';
 import { combineReducers } from './helpers';
-import { Action, ActionReducer, ActionReducerMap, Actions, BizliDb, BizliDbInitAction, Select } from './model';
+import { Action, ActionReducer, ActionReducerMap, Actions, BizliDb, Config, FileHandler, Log, Select } from './model';
 
 export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<TState, TActionType> {
+  private configs: BehaviorSubject<Config | undefined>;
   private reducers: BehaviorSubject<ActionReducer<TState, TActionType> | undefined>;
-  private states: BehaviorSubject<TState | undefined>;
   private actions: BehaviorSubject<Actions<TActionType> | undefined>;
+  private states: BehaviorSubject<TState | undefined>;
+  private logs: BehaviorSubject<Log | undefined>;
   private destroy: Subject<void>;
-  private logger: Logger;
+
+  private fileHandler: FileHandler<TState, TActionType>;
 
   constructor() {
+    this.configs = new BehaviorSubject<Config | undefined>(undefined);
     this.reducers = new BehaviorSubject<ActionReducer<TState, TActionType> | undefined>(undefined);
-    this.states = new BehaviorSubject<TState | undefined>(undefined);
     this.actions = new BehaviorSubject<Actions<TActionType> | undefined>(undefined);
+    this.states = new BehaviorSubject<TState | undefined>(undefined);
+    this.logs = new BehaviorSubject<Log | undefined>(undefined);
     this.destroy = new Subject();
-    this.logger = this.createLogger();
+
+    this.fileHandler = new FileHandlerImpl();
+
+    this.configs.pipe(
+      takeUntil(this.destroy),
+      filter(config => !!config),
+    ).subscribe(config => {
+      this.logs.next({ level: 'debug', name: 'bizli-db ConfigChanged', message: JSON.stringify(config) });
+      this.fileHandler.configure(config || {} as Config);
+    }, error => {
+      this.logs.next({
+        level: 'error',
+        message: error.message,
+        name: 'bizli-db ConfigChanged: ' + error.name,
+        stack: error.stack,
+      });
+    });
 
     this.reducers.pipe(
       takeUntil(this.destroy),
       filter(reducer => !!reducer),
     ).subscribe(reducer => {
-      this.logger.debug('ReducerChanged', reducer);
+      this.logs.next({ level: 'debug', name: 'bizli-db ReducerChanged', message: JSON.stringify(reducer) });
+      this.fileHandler.reduce(reducer || ((state = {} as TState) => state));
     }, error => {
-      this.logger.error(error);
+      this.logs.next({
+        level: 'error',
+        message: error.message,
+        name: 'bizli-db ReducerChanged: ' + error.name,
+        stack: error.stack,
+      });
+    });
+
+    this.actions.pipe(
+      takeUntil(this.destroy),
+      filter(action => !!action),
+    ).subscribe(action => {
+      this.logs.next({ level: 'debug', name: 'bizli-db ActionReceived', message: JSON.stringify(action) });
+      this.fileHandler.dispatch(action || {} as Action);
+    }, error => {
+      this.logs.next({
+        level: 'error',
+        message: error.message,
+        name: 'bizli-db ActionReceived: ' + error.name,
+        stack: error.stack,
+      });
     });
 
     this.states.pipe(
       takeUntil(this.destroy),
       filter(state => !!state),
     ).subscribe(state => {
-      this.logger.debug('StateChanged', state);
+      this.logs.next({ level: 'debug', name: 'bizli-db StateChanged', message: JSON.stringify(state) });
+      this.fileHandler.changeState(state || {} as TState);
     }, error => {
-      this.logger.error(error);
+      this.logs.next({
+        level: 'error',
+        message: error.message,
+        name: 'bizli-db StateChanged: ' + error.name,
+        stack: error.stack,
+      });
     });
 
-    this.actions.pipe(
+    this.logs.pipe(
       takeUntil(this.destroy),
-      withLatestFrom(this.states, this.reducers),
-      filter(([action, , reducer]) => !!action && !!reducer),
-    ).subscribe(([action, state, reducer]) => {
-      this.logger.debug('ActionReceived', action);
-      if (action && reducer) {
-        this.states.next(reducer(state, action));
-      }
+      filter(log => !!log),
+    ).subscribe(log => {
+      this.fileHandler.log(log || {} as Log);
     }, error => {
-      this.logger.error(error);
+      // tslint:disable-next-line:no-console
+      console.log(JSON.stringify({
+        level: 'error',
+        message: error.message,
+        name: 'bizli-db LogReceived: ' + error.name,
+        stack: error.stack,
+      }));
     });
   }
 
-  public reduce(reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>, resetState?: boolean) {
+  public configure(config: Config) {
+    this.configs.next(config);
+  }
+
+  public reduce(reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>) {
     const actionReducer = typeof reducer === 'function' ? reducer : combineReducers(reducer);
-    this.reducers.pipe(
-      take(1),
-    ).subscribe(currentReducer => {
-      if (resetState || !currentReducer) {
-        this.states.next(undefined);
-        this.states.next(actionReducer(undefined, BizliDbInitAction));
-      }
-      this.reducers.next(actionReducer);
-    });
+    this.reducers.next(actionReducer);
   }
 
   public dispatch(action: Actions<TActionType>) {
-    this.actions.next(action);
+    combineLatest([this.reducers, this.states]).pipe(
+      take(1),
+    ).subscribe(([reducer, state]) => {
+      if (reducer) {
+        this.states.next(reducer(state, action));
+      }
+      this.actions.next(action);
+    });
   }
 
   public select<TSubState>(select?: Select<TState, TSubState>): Observable<TState | TSubState> {
@@ -90,23 +142,5 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
   public dispose() {
     this.destroy.next();
     this.destroy.complete();
-  }
-
-  private createLogger() {
-    const logger = winston.createLogger({
-      defaultMeta: { service: 'bizli-db' },
-      format: winston.format.json(),
-      level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
-      transports: [
-        new winston.transports.File({ filename: 'error.log', level: 'error' }),
-        new winston.transports.File({ filename: 'combined.log' }),
-      ],
-    });
-    if (process.env.NODE_ENV !== 'production') {
-      logger.add(new winston.transports.Console({
-        format: winston.format.simple(),
-      }));
-    }
-    return logger;
   }
 }
