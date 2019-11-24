@@ -25,7 +25,7 @@ const reducer1 = (state = {} as SubState1, action: Actions<BizliDbActions>) => {
   }
   return state;
 };
-const reducer2 = (state = {} as SubState2, action: Actions<BizliDbActions>) => {
+const reducer2 = (state: any, action: Actions<BizliDbActions>) => {
   switch (action.type) {
     case 'BIZLI-DB-INIT': {
       return {
