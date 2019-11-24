@@ -1,6 +1,6 @@
-import { BehaviorSubject, Observable, Subject } from 'rxjs';
+import { BehaviorSubject, Observable, of, Subject } from 'rxjs';
 import { exhaustMap, filter, map, take, takeUntil, tap, withLatestFrom } from 'rxjs/operators';
-import { readFile, writeFile } from './helpers';
+import { fileExists, readFile, writeFile } from './helpers';
 import { ActionReducer, Actions, Config, File, FileHandler, Log } from './model';
 
 export class FileHandlerImpl<TState, TActionType extends string> implements FileHandler<TState, TActionType> {
@@ -22,13 +22,26 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
         this.logs.next({ level: 'debug', name: 'file-handler ConfigChanged', message: JSON.stringify(config) });
       }),
       exhaustMap(config =>
-        readFile(config && (config.path + config.fileName) || '', 'utf8').pipe(
-          tap(fileString => this.logs.next({ level: 'debug', name: 'file-handler FileRead', message: fileString })),
-          map(fileString => JSON.parse(fileString) as File<TState, TActionType>),
+        fileExists(config && (config.path + config.fileName) || '').pipe(
+          exhaustMap(exists => {
+            if (exists) {
+              return readFile(config && (config.path + config.fileName) || '', 'utf8').pipe(
+                tap(fileString => this.logs.next({
+                  level: 'debug',
+                  message: fileString,
+                  name: 'file-handler FileRead',
+                })),
+                map(fileString => JSON.parse(fileString) as File<TState, TActionType>),
+              );
+            }
+            return of(undefined);
+          }),
         ),
       ),
     ).subscribe(file => {
-      this.files.next(file);
+      if (file) {
+        this.files.next(file);
+      }
     }, error => {
       this.logs.next({
         level: 'error',

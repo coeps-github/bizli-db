@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import { NoParamCallback, PathLike, WriteFileOptions } from 'fs';
-import { bindNodeCallback, Observable } from 'rxjs';
+import { bindNodeCallback, Observable, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { ActionReducer, ActionReducerMap, Actions } from './model';
 
 export function combineReducers<TState, TActionType extends string>(
@@ -12,6 +13,17 @@ export function combineReducers<TState, TActionType extends string>(
       return nextState;
     }, { ...state } as TState);
   };
+}
+
+export function fileExists(filePath: string): Observable<boolean> {
+  const fileExistsBinder = bindNodeCallback((
+    path: PathLike,
+    callback: NoParamCallback,
+  ) => fs.access(path, fs.constants.F_OK, callback));
+  return fileExistsBinder(filePath).pipe(
+    map(() => true),
+    catchError(error => of(!error)),
+  );
 }
 
 export function readFile(filePath: string, fileEncoding: string): Observable<string> {
