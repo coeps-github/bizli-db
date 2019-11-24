@@ -1,5 +1,6 @@
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
-import { filter, map, take, takeUntil } from 'rxjs/operators';
+import { exhaustMap, filter, map, take, takeUntil, tap, withLatestFrom } from 'rxjs/operators';
+import { readFile, writeFile } from './helpers';
 import { ActionReducer, ActionReducerMap, Actions, Config, File, FileHandler, Log } from './model';
 
 export class FileHandlerImpl<TState, TActionType extends string> implements FileHandler<TState, TActionType> {
@@ -17,9 +18,17 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
     this.configs.pipe(
       takeUntil(this.destroy),
       filter(config => !!config),
-    ).subscribe(config => {
-      this.logs.next({ level: 'debug', name: 'file-handler ConfigChanged', message: JSON.stringify(config) });
-      // TODO: read the file (exhaustMap)
+      tap(config => {
+        this.logs.next({ level: 'debug', name: 'file-handler ConfigChanged', message: JSON.stringify(config) });
+      }),
+      exhaustMap(config =>
+        readFile(config && (config.path + config.fileName) || '', 'utf8').pipe(
+          tap(fileString => this.logs.next({ level: 'debug', name: 'file-handler FileRead', message: fileString })),
+          map(fileString => JSON.parse(fileString) as File<TState, TActionType>),
+        ),
+      ),
+    ).subscribe(file => {
+      this.files.next(file);
     }, error => {
       this.logs.next({
         level: 'error',
@@ -32,9 +41,17 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
     this.files.pipe(
       takeUntil(this.destroy),
       filter(file => !!file),
-    ).subscribe(file => {
-      this.logs.next({ level: 'debug', name: 'file-handler FileChanged', message: JSON.stringify(file) });
-      // TODO: save the file (exhaustMap) ...
+      map(file => JSON.stringify(file)),
+      tap(fileString => {
+        this.logs.next({ level: 'debug', name: 'file-handler FileChanged', message: fileString });
+      }),
+      withLatestFrom(this.configs),
+      filter(([, config]) => !!config),
+      exhaustMap(([fileString, config]) =>
+        writeFile(config && (config.path + config.fileName) || '', fileString, 'utf8'),
+      ),
+    ).subscribe(() => {
+      // Nothing
     }, error => {
       this.logs.next({
         level: 'error',
