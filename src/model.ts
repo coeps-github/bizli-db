@@ -19,7 +19,10 @@ export interface File<TState> {
   readonly data: TState[]
 }
 
-export type Reducer<TState, TActionType extends string> = (reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>) => void;
+export type Reducer<TState, TActionType extends string> = (
+  reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>,
+  resetState: boolean,
+) => void;
 export type Dispatcher<TActionType extends string> = (action: Actions<TActionType>) => void;
 export type Selector<TState> = <TSubState>(select?: Select<TState, TSubState>) => Observable<TState | TSubState>;
 export type Observer<TActionType extends string> = (actions: Array<string | TActionType>) => Observable<Actions<TActionType>>;

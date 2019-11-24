@@ -1,5 +1,5 @@
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
-import { filter, map, takeUntil, withLatestFrom } from 'rxjs/operators';
+import { filter, map, take, takeUntil, withLatestFrom } from 'rxjs/operators';
 import * as winston from 'winston';
 import { Logger } from 'winston';
 import { combineReducers } from './helpers';
@@ -24,10 +24,6 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
       filter(reducer => !!reducer),
     ).subscribe(reducer => {
       this.logger.debug('ReducerChanged', reducer);
-      if (reducer) {
-        this.states.next(undefined);
-        this.states.next(reducer(undefined, BizliDbInitAction));
-      }
     }, error => {
       this.logger.error(error);
     });
@@ -55,9 +51,17 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
     });
   }
 
-  public reduce(reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>) {
+  public reduce(reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>, resetState?: boolean) {
     const actionReducer = typeof reducer === 'function' ? reducer : combineReducers(reducer);
-    this.reducers.next(actionReducer);
+    this.reducers.pipe(
+      take(1),
+    ).subscribe(currentReducer => {
+      if (resetState || !currentReducer) {
+        this.states.next(undefined);
+        this.states.next(actionReducer(undefined, BizliDbInitAction));
+      }
+      this.reducers.next(actionReducer);
+    });
   }
 
   public dispatch(action: Actions<TActionType>) {
