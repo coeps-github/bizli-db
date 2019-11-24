@@ -1,7 +1,7 @@
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { exhaustMap, filter, map, take, takeUntil, tap, withLatestFrom } from 'rxjs/operators';
 import { readFile, writeFile } from './helpers';
-import { ActionReducer, ActionReducerMap, Actions, Config, File, FileHandler, Log } from './model';
+import { ActionReducer, Actions, Config, File, FileHandler, Log } from './model';
 
 export class FileHandlerImpl<TState, TActionType extends string> implements FileHandler<TState, TActionType> {
   private configs: BehaviorSubject<Config | undefined>;
@@ -81,7 +81,7 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
     this.configs.next(config);
   }
 
-  public reduce(reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>) {
+  public reduce(reducer: ActionReducer<TState, TActionType>) {
     this.files.pipe(
       take(1),
     ).subscribe(file => {

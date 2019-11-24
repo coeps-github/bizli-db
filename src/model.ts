@@ -28,7 +28,7 @@ export interface Config {
 export interface FileHandler<TState, TActionType extends string> {
   configure(config: Config): void;
 
-  reduce(reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>): void;
+  reduce(reducer: ActionReducer<TState, TActionType>): void;
 
   dispatch(action: Actions<TActionType>): void;
 
@@ -43,7 +43,7 @@ export interface FileHandler<TState, TActionType extends string> {
 
 export interface File<TState, TActionType extends string> {
   readonly configs: Config[];
-  readonly reducers: Array<ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>>;
+  readonly reducers: Array<ActionReducer<TState, TActionType>>;
   readonly actions: Array<Actions<TActionType>>;
   readonly states: TState[];
   readonly logs: Log[];

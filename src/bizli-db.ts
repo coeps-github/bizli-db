@@ -23,6 +23,24 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
     this.destroy = new Subject();
 
     this.fileHandler = new FileHandlerImpl();
+    this.fileHandler.observe().pipe(
+      take(1),
+    ).subscribe(file => {
+      this.logs.next({ level: 'debug', name: 'bizli-db FileChangedFirstTime', message: JSON.stringify(file) });
+      if (file.reducers && file.reducers.length > 0) {
+        this.reducers.next(file.reducers[file.reducers.length - 1]);
+      }
+      if (file.states && file.states.length > 0) {
+        this.states.next(file.states[file.states.length - 1]);
+      }
+    }, error => {
+      this.logs.next({
+        level: 'error',
+        message: error.message,
+        name: 'bizli-db FileChangedFirstTime: ' + error.name,
+        stack: error.stack,
+      });
+    });
 
     this.configs.pipe(
       takeUntil(this.destroy),
