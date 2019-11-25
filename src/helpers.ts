@@ -46,9 +46,8 @@ export function writeFile(filePath: string, fileData: string, fileEncoding: stri
   return writeFileBinder(filePath, fileData, { encoding: fileEncoding });
 }
 
-export function createFilePath(fileName: string = 'db.json', path: string = './'): string {
-  const fullPath = fsPath.join(fsPath.resolve(path), fileName);
-  return fullPath;
+export function createFilePath(fileName: string = 'db.json', path: string = ''): string {
+  return fsPath.join(fsPath.resolve(path), fileName);
 }
 
 export function mustBeLogged(logLevel: LogLevel, config: Config): boolean {

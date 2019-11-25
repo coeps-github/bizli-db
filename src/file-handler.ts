@@ -19,10 +19,10 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
       exhaustMap(file =>
         writeFile(createFilePath(this.config.fileName, this.config.path), JSON.stringify(file), 'utf8'),
       ),
-    ).subscribe(file => {
-      this.logToConsole({ level: 'debug', name: 'file-handler FileChanged', message: JSON.stringify(file) });
+    ).subscribe(() => {
+      this.logToConsole({ level: 'debug', name: 'file-handler FileWritten', message: '...' });
     }, error => {
-      this.log({ level: 'error', message: error.message, name: `file-handler FileChanged: ${error.name}`, stack: error.stack });
+      this.log({ level: 'error', message: error.message, name: `file-handler FileWritten: ${error.name}`, stack: error.stack });
     });
   }
 
