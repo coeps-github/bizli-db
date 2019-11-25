@@ -1,7 +1,7 @@
 import { Observable } from 'rxjs';
 
 export interface BizliDb<TState, TActionType extends string> {
-  configure(config: Config): void;
+  configure(config?: Config): void;
 
   reduce(reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>): void;
 
@@ -17,9 +17,10 @@ export interface BizliDb<TState, TActionType extends string> {
 }
 
 export interface Config {
-  readonly fileName: string;
-  readonly path?: string;
+  readonly fileName?: string; // default db.json
+  readonly path?: string; // default executing directory
   readonly logLevel?: LogLevel; // default info
+  readonly logToConsole?: boolean; // default false
   // TODO: Maybe ... KISS YAGNI
   // readonly maxHistory: number; // 0 is infinite, default 0
   // readonly maxSizeBytes: number; // 0 is infinite, default 0
@@ -28,13 +29,13 @@ export interface Config {
 }
 
 export interface FileHandler<TState, TActionType extends string> {
-  configure(config: Config): Observable<FileLoaded<TState, TActionType>>;
+  configure(config?: Config): Observable<FileLoaded<TState, TActionType>>;
 
   reduce(reducer: ActionReducer<TState, TActionType>): void;
 
   dispatch(action: Actions<TActionType>): void;
 
-  changeState(state: TState): void;
+  changeState(state: TState | undefined): void;
 
   log(log: Log): void;
 

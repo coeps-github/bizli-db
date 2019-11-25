@@ -3,7 +3,7 @@ import { NoParamCallback, PathLike, WriteFileOptions } from 'fs';
 import * as fsPath from 'path';
 import { bindNodeCallback, Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { ActionReducer, ActionReducerMap, Actions, LogLevel } from './model';
+import { ActionReducer, ActionReducerMap, Actions, Config, LogLevel } from './model';
 
 export function combineReducers<TState, TActionType extends string>(
   actionReducerMap: ActionReducerMap<TState, TActionType>,
@@ -46,12 +46,13 @@ export function writeFile(filePath: string, fileData: string, fileEncoding: stri
   return writeFileBinder(filePath, fileData, { encoding: fileEncoding });
 }
 
-export function createFilePath(fileName: string, path?: string): string {
-  const filePath = path || '';
-  return fsPath.join(fsPath.resolve(filePath), fileName);
+export function createFilePath(fileName: string = 'db.json', path: string = './'): string {
+  const fullPath = fsPath.join(fsPath.resolve(path), fileName);
+  return fullPath;
 }
 
-export function mustBeLogged(logLevel: LogLevel, minimumLogLevel?: LogLevel): boolean {
+export function mustBeLogged(logLevel: LogLevel, config: Config): boolean {
+  const minimumLogLevel = config.logLevel || 'info';
   switch (minimumLogLevel) {
     case 'error':
       return logLevel === 'error';
@@ -60,4 +61,9 @@ export function mustBeLogged(logLevel: LogLevel, minimumLogLevel?: LogLevel): bo
     default:
       return logLevel === 'error' || logLevel === 'info';
   }
+}
+
+export function mustBeLoggedToConsole(logLevel: LogLevel, config: Config): boolean {
+  const logToConsole = config.logToConsole || false;
+  return logToConsole && mustBeLogged(logLevel, config);
 }

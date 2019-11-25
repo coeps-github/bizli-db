@@ -1,148 +1,69 @@
-import { BehaviorSubject, combineLatest, Observable, Subject } from 'rxjs';
-import { distinctUntilChanged, exhaustMap, filter, map, take, takeUntil } from 'rxjs/operators';
+import { BehaviorSubject, Observable, Subject } from 'rxjs';
+import { distinctUntilChanged, filter, map, take, takeUntil } from 'rxjs/operators';
 import { FileHandlerImpl } from './file-handler';
 import { combineReducers } from './helpers';
-import { Action, ActionReducer, ActionReducerMap, Actions, BizliDb, Config, FileHandler, Log, Select } from './model';
+import { Action, ActionReducer, ActionReducerMap, Actions, BizliDb, Config, FileHandler, Select } from './model';
 
 export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<TState, TActionType> {
-  private configs: BehaviorSubject<Config | undefined>;
-  private reducers: BehaviorSubject<ActionReducer<TState, TActionType> | undefined>;
+  private config: Config;
+  private reducer: ActionReducer<TState, TActionType>;
   private actions: BehaviorSubject<Actions<TActionType> | undefined>;
   private states: BehaviorSubject<TState | undefined>;
-  private logs: BehaviorSubject<Log | undefined>;
   private destroy: Subject<void>;
 
   private fileHandler: FileHandler<TState, TActionType>;
 
   constructor() {
-    this.configs = new BehaviorSubject<Config | undefined>(undefined);
-    this.reducers = new BehaviorSubject<ActionReducer<TState, TActionType> | undefined>(undefined);
+    this.config = {};
+    this.reducer = (state: any) => state;
     this.actions = new BehaviorSubject<Actions<TActionType> | undefined>(undefined);
     this.states = new BehaviorSubject<TState | undefined>(undefined);
-    this.logs = new BehaviorSubject<Log | undefined>(undefined);
     this.destroy = new Subject();
 
     this.fileHandler = new FileHandlerImpl();
+  }
 
-    this.configs.pipe(
-      takeUntil(this.destroy),
-      filter(config => !!config),
-    ).subscribe(config => {
-      this.logs.next({ level: 'debug', name: 'bizli-db ConfigChanged', message: JSON.stringify(config) });
-    }, error => {
-      this.logs.next({
-        level: 'error',
-        message: error.message,
-        name: 'bizli-db ConfigChanged: ' + error.name,
-        stack: error.stack,
-      });
-    });
-
-    this.configs.pipe(
-      takeUntil(this.destroy),
-      filter(config => !!config),
-      exhaustMap(config =>
-        this.fileHandler.configure(config || {} as Config).pipe(
-          take(1),
-        )),
-    ).subscribe(fileLoaded => {
-      this.logs.next({ level: 'debug', name: 'bizli-db FileLoaded', message: JSON.stringify(fileLoaded) });
+  public configure(config?: Config) {
+    this.config = config || this.config;
+    this.fileHandler.log({ level: 'debug', name: 'bizli-db ConfigChanged', message: JSON.stringify(this.config) });
+    this.fileHandler.configure(this.config).subscribe(fileLoaded => {
+      this.fileHandler.log({ level: 'debug', name: 'bizli-db FileLoaded', message: JSON.stringify(fileLoaded) });
       if (fileLoaded.reducer) {
-        this.reducers.next(fileLoaded.reducer);
+        this.fileHandler.log({ level: 'debug', name: 'bizli-db ReducerChanged (configure)', message: JSON.stringify(fileLoaded.reducer) });
+        this.reducer = fileLoaded.reducer;
       }
       if (fileLoaded.state) {
+        this.fileHandler.log({ level: 'debug', name: 'bizli-db StateChanged (configure)', message: JSON.stringify(fileLoaded.state) });
         this.states.next(fileLoaded.state);
       }
     }, error => {
-      this.logs.next({
-        level: 'error',
-        message: error.message,
-        name: 'bizli-db FileLoaded: ' + error.name,
-        stack: error.stack,
-      });
+      this.fileHandler.log({ level: 'error', name: `bizli-db FileLoaded: ${error.name}`, message: error.message, stack: error.stack });
     });
-
-    this.reducers.pipe(
-      takeUntil(this.destroy),
-      filter(reducer => !!reducer),
-    ).subscribe(reducer => {
-      this.logs.next({ level: 'debug', name: 'bizli-db ReducerChanged', message: JSON.stringify(reducer) });
-      this.fileHandler.reduce(reducer || ((state = {} as TState) => state));
-    }, error => {
-      this.logs.next({
-        level: 'error',
-        message: error.message,
-        name: 'bizli-db ReducerChanged: ' + error.name,
-        stack: error.stack,
-      });
-    });
-
-    this.actions.pipe(
-      takeUntil(this.destroy),
-      filter(action => !!action),
-    ).subscribe(action => {
-      this.logs.next({ level: 'debug', name: 'bizli-db ActionReceived', message: JSON.stringify(action) });
-      this.fileHandler.dispatch(action || {} as Action);
-    }, error => {
-      this.logs.next({
-        level: 'error',
-        message: error.message,
-        name: 'bizli-db ActionReceived: ' + error.name,
-        stack: error.stack,
-      });
-    });
-
-    this.states.pipe(
-      takeUntil(this.destroy),
-      filter(state => !!state),
-    ).subscribe(state => {
-      this.logs.next({ level: 'debug', name: 'bizli-db StateChanged', message: JSON.stringify(state) });
-      this.fileHandler.changeState(state || {} as TState);
-    }, error => {
-      this.logs.next({
-        level: 'error',
-        message: error.message,
-        name: 'bizli-db StateChanged: ' + error.name,
-        stack: error.stack,
-      });
-    });
-
-    this.logs.pipe(
-      takeUntil(this.destroy),
-      filter(log => !!log),
-    ).subscribe(log => {
-      this.fileHandler.log(log || {} as Log);
-    }, error => {
-      this.fileHandler.log({
-        level: 'error',
-        message: error.message,
-        name: 'bizli-db LogReceived: ' + error.name,
-        stack: error.stack,
-      });
-    });
-  }
-
-  public configure(config: Config) {
-    this.configs.next(config);
   }
 
   public reduce(reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>) {
-    const actionReducer = typeof reducer === 'function' ? reducer : combineReducers(reducer);
-    this.reducers.next(actionReducer);
+    this.reducer = typeof reducer === 'function' ? reducer : combineReducers(reducer);
+    this.fileHandler.log({ level: 'debug', name: 'bizli-db ReducerChanged (reduce)', message: JSON.stringify(this.reducer) });
+    this.fileHandler.reduce(this.reducer);
   }
 
   public dispatch(action: Actions<TActionType>) {
-    combineLatest([this.reducers, this.states]).pipe(
+    this.states.pipe(
       take(1),
-    ).subscribe(([reducer, state]) => {
-      if (reducer) {
-        this.states.next(reducer(state, action));
-      }
+    ).subscribe(state => {
+      const newState = this.reducer(state, action);
+      this.fileHandler.log({ level: 'debug', name: 'bizli-db StateChanged (dispatch)', message: JSON.stringify(newState) });
+      this.states.next(newState);
+      this.fileHandler.changeState(state);
+
+      this.fileHandler.log({ level: 'debug', name: 'bizli-db ActionDispatched', message: JSON.stringify(state) });
       this.actions.next(action);
+      this.fileHandler.dispatch(action);
     });
   }
 
   public select<TSubState>(select: Select<TState, TSubState>, compare?: (a: TSubState, b: TSubState) => boolean): Observable<TSubState> {
+    this.fileHandler.log({ level: 'debug', name: 'bizli-db StateSelected', message: `Select: ${JSON.stringify(select)}, Compare: ${JSON.stringify(compare)}` });
     return this.states.pipe(
       takeUntil(this.destroy),
       filter(state => !!state),
@@ -152,6 +73,7 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
   }
 
   public selectRoot(compare?: (a: TState, b: TState) => boolean): Observable<TState> {
+    this.fileHandler.log({ level: 'debug', name: 'bizli-db RootStateSelected', message: `Compare: ${JSON.stringify(compare)}` });
     return this.states.pipe(
       takeUntil(this.destroy),
       filter(state => !!state),
@@ -161,6 +83,7 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
   }
 
   public observe(actions: Array<string | TActionType>): Observable<Actions<TActionType>> {
+    this.fileHandler.log({ level: 'debug', name: 'bizli-db ActionsObserved', message: JSON.stringify(actions) });
     return this.actions.pipe(
       takeUntil(this.destroy),
       filter(action => !!action && actions.includes(action.type)),
