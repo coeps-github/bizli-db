@@ -1,5 +1,5 @@
 import { BehaviorSubject, combineLatest, Observable, of, Subject } from 'rxjs';
-import { exhaustMap, filter, map, take, takeUntil, tap, withLatestFrom } from 'rxjs/operators';
+import { exhaustMap, filter, map, take, takeUntil, withLatestFrom } from 'rxjs/operators';
 import { createFilePath, fileExists, mustBeLogged, readFile, writeFile } from './helpers';
 import { ActionReducer, Actions, Config, File, FileHandler, FileLoaded, Log } from './model';
 
@@ -20,19 +20,27 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
     this.configs.pipe(
       takeUntil(this.destroy),
       filter(config => !!config),
-      tap(config => {
-        this.logs.next({ level: 'debug', name: 'file-handler ConfigChanged', message: JSON.stringify(config) });
-      }),
+    ).subscribe(config => {
+      this.logs.next({ level: 'debug', name: 'file-handler ConfigChanged', message: JSON.stringify(config) });
+    }, error => {
+      this.logs.next({
+        level: 'error',
+        message: error.message,
+        name: 'file-handler ConfigChanged: ' + error.name,
+        stack: error.stack,
+      });
+    });
+
+    this.configs.pipe(
+      takeUntil(this.destroy),
+      filter(config => !!config),
       exhaustMap(config =>
-        fileExists(config && createFilePath(config.path, config.fileName) || '').pipe(
+        fileExists(config && createFilePath(config.fileName, config.path) || '').pipe(
+          take(1),
           exhaustMap(exists => {
             if (exists) {
-              return readFile(config && createFilePath(config.path, config.fileName) || '', 'utf8').pipe(
-                tap(fileString => this.logs.next({
-                  level: 'debug',
-                  message: fileString,
-                  name: 'file-handler FileRead',
-                })),
+              return readFile(config && createFilePath(config.fileName, config.path) || '', 'utf8').pipe(
+                take(1),
                 map(fileString => JSON.parse(fileString) as File<TState, TActionType>),
               );
             }
@@ -41,6 +49,7 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
         ),
       ),
     ).subscribe(file => {
+      this.logs.next({ level: 'debug', name: 'file-handler FileRead', message: JSON.stringify(file) });
       this.fileLoaded.next({
         reducer: file && file.reducers && file.reducers.length > 0 && file.reducers[file.reducers.length - 1] || undefined,
         state: file && file.states && file.states.length > 0 && file.states[file.states.length - 1] || undefined,
@@ -49,7 +58,7 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
       this.logs.next({
         level: 'error',
         message: error.message,
-        name: 'file-handler ConfigChanged/FileRead: ' + error.name,
+        name: 'file-handler FileRead: ' + error.name,
         stack: error.stack,
       });
     });
@@ -75,7 +84,9 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
       withLatestFrom(this.configs),
       filter(([, config]) => !!config),
       exhaustMap(([fileString, config]) =>
-        writeFile(config && createFilePath(config.path, config.fileName) || '', fileString, 'utf8'),
+        writeFile(config && createFilePath(config.fileName, config.path) || '', fileString, 'utf8').pipe(
+          take(1),
+        ),
       ),
     ).subscribe(() => {
       // Nothing

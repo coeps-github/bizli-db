@@ -18,8 +18,8 @@ export interface BizliDb<TState, TActionType extends string> {
 
 export interface Config {
   readonly fileName: string;
-  readonly path: string;
-  readonly logLevel: LogLevel; // default info
+  readonly path?: string;
+  readonly logLevel?: LogLevel; // default info
   // TODO: Maybe ... KISS YAGNI
   // readonly maxHistory: number; // 0 is infinite, default 0
   // readonly maxSizeBytes: number; // 0 is infinite, default 0

@@ -46,8 +46,9 @@ export function writeFile(filePath: string, fileData: string, fileEncoding: stri
   return writeFileBinder(filePath, fileData, { encoding: fileEncoding });
 }
 
-export function createFilePath(path: string, fileName: string): string {
-  return fsPath.join(fsPath.resolve(path), fileName);
+export function createFilePath(fileName: string, path?: string): string {
+  const filePath = path || '';
+  return fsPath.join(fsPath.resolve(filePath), fileName);
 }
 
 export function mustBeLogged(logLevel: LogLevel, minimumLogLevel?: LogLevel): boolean {

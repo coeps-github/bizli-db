@@ -1,5 +1,5 @@
 import { BehaviorSubject, combineLatest, Observable, Subject } from 'rxjs';
-import { distinctUntilChanged, filter, map, take, takeUntil } from 'rxjs/operators';
+import { distinctUntilChanged, exhaustMap, filter, map, take, takeUntil } from 'rxjs/operators';
 import { FileHandlerImpl } from './file-handler';
 import { combineReducers } from './helpers';
 import { Action, ActionReducer, ActionReducerMap, Actions, BizliDb, Config, FileHandler, Log, Select } from './model';
@@ -29,29 +29,35 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
       filter(config => !!config),
     ).subscribe(config => {
       this.logs.next({ level: 'debug', name: 'bizli-db ConfigChanged', message: JSON.stringify(config) });
-      this.fileHandler.configure(config || {} as Config).pipe(
-        take(1),
-      ).subscribe(fileLoaded => {
-        this.logs.next({ level: 'debug', name: 'bizli-db FileLoaded', message: JSON.stringify(fileLoaded) });
-        if (fileLoaded.reducer) {
-          this.reducers.next(fileLoaded.reducer);
-        }
-        if (fileLoaded.state) {
-          this.states.next(fileLoaded.state);
-        }
-      }, error => {
-        this.logs.next({
-          level: 'error',
-          message: error.message,
-          name: 'bizli-db FileLoaded: ' + error.name,
-          stack: error.stack,
-        });
-      });
     }, error => {
       this.logs.next({
         level: 'error',
         message: error.message,
         name: 'bizli-db ConfigChanged: ' + error.name,
+        stack: error.stack,
+      });
+    });
+
+    this.configs.pipe(
+      takeUntil(this.destroy),
+      filter(config => !!config),
+      exhaustMap(config =>
+        this.fileHandler.configure(config || {} as Config).pipe(
+          take(1),
+        )),
+    ).subscribe(fileLoaded => {
+      this.logs.next({ level: 'debug', name: 'bizli-db FileLoaded', message: JSON.stringify(fileLoaded) });
+      if (fileLoaded.reducer) {
+        this.reducers.next(fileLoaded.reducer);
+      }
+      if (fileLoaded.state) {
+        this.states.next(fileLoaded.state);
+      }
+    }, error => {
+      this.logs.next({
+        level: 'error',
+        message: error.message,
+        name: 'bizli-db FileLoaded: ' + error.name,
         stack: error.stack,
       });
     });
