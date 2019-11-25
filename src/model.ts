@@ -10,7 +10,7 @@ export interface BizliDb<TState, TActionType extends string> {
   select<TSubState>(select: Select<TState, TSubState>, compare?: (a: TSubState, b: TSubState) => boolean): Observable<TSubState>;
 
   selectRoot(compare?: (a: TState, b: TState) => boolean): Observable<TState>;
-  
+
   observe(actions: Array<string | TActionType>): Observable<Actions<TActionType>>;
 
   dispose(): void;
@@ -28,7 +28,7 @@ export interface Config {
 }
 
 export interface FileHandler<TState, TActionType extends string> {
-  configure(config: Config): void;
+  configure(config: Config): Observable<FileLoaded<TState, TActionType>>;
 
   reduce(reducer: ActionReducer<TState, TActionType>): void;
 
@@ -37,8 +37,6 @@ export interface FileHandler<TState, TActionType extends string> {
   changeState(state: TState): void;
 
   log(log: Log): void;
-
-  observe(): Observable<File<TState, TActionType>>;
 
   dispose(): void;
 }
@@ -49,6 +47,11 @@ export interface File<TState, TActionType extends string> {
   readonly actions: Array<Actions<TActionType>>;
   readonly states: TState[];
   readonly logs: Log[];
+}
+
+export interface FileLoaded<TState, TActionType extends string> {
+  readonly reducer: ActionReducer<TState, TActionType> | undefined;
+  readonly state: TState | undefined;
 }
 
 export type Select<TState, TSubState> = (state: TState) => TSubState;

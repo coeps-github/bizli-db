@@ -23,31 +23,30 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
     this.destroy = new Subject();
 
     this.fileHandler = new FileHandlerImpl();
-    this.fileHandler.observe().pipe(
-      take(1),
-    ).subscribe(file => {
-      this.logs.next({ level: 'debug', name: 'bizli-db FileChangedFirstTime', message: JSON.stringify(file) });
-      if (file.reducers && file.reducers.length > 0) {
-        this.reducers.next(file.reducers[file.reducers.length - 1]);
-      }
-      if (file.states && file.states.length > 0) {
-        this.states.next(file.states[file.states.length - 1]);
-      }
-    }, error => {
-      this.logs.next({
-        level: 'error',
-        message: error.message,
-        name: 'bizli-db FileChangedFirstTime: ' + error.name,
-        stack: error.stack,
-      });
-    });
 
     this.configs.pipe(
       takeUntil(this.destroy),
       filter(config => !!config),
     ).subscribe(config => {
       this.logs.next({ level: 'debug', name: 'bizli-db ConfigChanged', message: JSON.stringify(config) });
-      this.fileHandler.configure(config || {} as Config);
+      this.fileHandler.configure(config || {} as Config).pipe(
+        take(1),
+      ).subscribe(fileLoaded => {
+        this.logs.next({ level: 'debug', name: 'bizli-db FileLoaded', message: JSON.stringify(fileLoaded) });
+        if (fileLoaded.reducer) {
+          this.reducers.next(fileLoaded.reducer);
+        }
+        if (fileLoaded.state) {
+          this.states.next(fileLoaded.state);
+        }
+      }, error => {
+        this.logs.next({
+          level: 'error',
+          message: error.message,
+          name: 'bizli-db FileLoaded: ' + error.name,
+          stack: error.stack,
+        });
+      });
     }, error => {
       this.logs.next({
         level: 'error',
@@ -108,13 +107,12 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
     ).subscribe(log => {
       this.fileHandler.log(log || {} as Log);
     }, error => {
-      // tslint:disable-next-line:no-console
-      console.log(JSON.stringify({
+      this.fileHandler.log({
         level: 'error',
         message: error.message,
         name: 'bizli-db LogReceived: ' + error.name,
         stack: error.stack,
-      }));
+      });
     });
   }
 
