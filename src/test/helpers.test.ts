@@ -59,6 +59,7 @@ describe('helpers', () => {
 
     test('should not read non-existing file', done => {
       readFile(`${__dirname}/files/non-existing.json`, 'utf8').subscribe(() => {
+        // Nothing
       }, error => {
         expect(error).not.toBeUndefined();
         done();

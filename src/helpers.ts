@@ -3,16 +3,16 @@ import { NoParamCallback, PathLike, WriteFileOptions } from 'fs';
 import * as fsPath from 'path';
 import { bindNodeCallback, Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { ActionReducer, ActionReducerMap, Actions, Config, LogLevel } from './model';
+import { ActionReducer, ActionReducerMap, Actions, Config, LogLevel, States } from './model';
 
 export function combineReducers<TState, TActionType extends string>(
   actionReducerMap: ActionReducerMap<TState, TActionType>,
 ): ActionReducer<TState, TActionType> {
-  return (state: TState | undefined, action: Actions<TActionType>) => {
+  return (state: States<TState> | undefined, action: Actions<TActionType>) => {
     return Object.keys(actionReducerMap).reduce((nextState, key) => {
       (nextState as any)[key] = (actionReducerMap as any)[key]((state || {} as any)[key], action);
       return nextState;
-    }, { ...state } as TState);
+    }, { ...state } as States<TState>);
   };
 }
 
@@ -50,7 +50,7 @@ export function createFilePath(fileName: string = 'db.json', path: string = ''):
   return fsPath.join(fsPath.resolve(path), fileName);
 }
 
-export function mustBeLogged(logLevel: LogLevel, config: Config): boolean {
+export function mustBeLogged<TState>(logLevel: LogLevel, config: Config<TState>): boolean {
   const minimumLogLevel = config.logLevel || 'info';
   switch (minimumLogLevel) {
     case 'error':
@@ -62,7 +62,11 @@ export function mustBeLogged(logLevel: LogLevel, config: Config): boolean {
   }
 }
 
-export function mustBeLoggedToConsole(logLevel: LogLevel, config: Config): boolean {
+export function mustBeLoggedToConsole<TState>(logLevel: LogLevel, config: Config<TState>): boolean {
   const logToConsole = config.logToConsole || false;
   return logToConsole && mustBeLogged(logLevel, config);
+}
+
+export function last<T>(array?: T[]): T | undefined {
+  return array && array.length > 0 ? array[array.length - 1] : undefined;
 }

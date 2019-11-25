@@ -1,26 +1,28 @@
 import { Observable } from 'rxjs';
 
 export interface BizliDb<TState, TActionType extends string> {
-  configure(config?: Config): void;
+  configure(config?: Config<TState>): void;
 
   reduce(reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>): void;
 
   dispatch(action: Actions<TActionType>): void;
 
-  select<TSubState>(select: Select<TState, TSubState>, compare?: (a: TSubState, b: TSubState) => boolean): Observable<TSubState>;
+  select<TSubState>(select: Select<TState, TSubState>, compare?: Compare<TSubState>): Observable<TSubState>;
 
-  selectRoot(compare?: (a: TState, b: TState) => boolean): Observable<TState>;
+  selectRoot(compare?: Compare<States<TState>>): Observable<States<TState>>;
 
   observe(actions: Array<string | TActionType>): Observable<Actions<TActionType>>;
 
   dispose(): void;
 }
 
-export interface Config {
+export interface Config<TState> {
   readonly fileName?: string; // default db.json
   readonly path?: string; // default executing directory
+  readonly migrate?: Migration<TState> // default nothing to migrate
   readonly logLevel?: LogLevel; // default info
   readonly logToConsole?: boolean; // default false
+
   // TODO: Maybe ... KISS YAGNI
   // readonly maxHistory: number; // 0 is infinite, default 0
   // readonly maxSizeBytes: number; // 0 is infinite, default 0
@@ -29,13 +31,13 @@ export interface Config {
 }
 
 export interface FileHandler<TState, TActionType extends string> {
-  configure(config?: Config): Observable<FileLoaded<TState, TActionType>>;
+  configure(config?: Config<TState>): Observable<States<TState> | undefined>;
 
   reduce(reducer: ActionReducer<TState, TActionType>): void;
 
   dispatch(action: Actions<TActionType>): void;
 
-  changeState(state: TState | undefined): void;
+  changeState(state: States<TState> | undefined): void;
 
   log(log: Log): void;
 
@@ -43,19 +45,22 @@ export interface FileHandler<TState, TActionType extends string> {
 }
 
 export interface File<TState, TActionType extends string> {
-  readonly configs: Config[];
+  readonly configs: Array<Config<TState>>;
   readonly reducers: Array<ActionReducer<TState, TActionType>>;
   readonly actions: Array<Actions<TActionType>>;
-  readonly states: TState[];
+  readonly states: Array<States<TState>>;
   readonly logs: Log[];
 }
 
-export interface FileLoaded<TState, TActionType extends string> {
-  readonly reducer: ActionReducer<TState, TActionType> | undefined;
-  readonly state: TState | undefined;
+export type States<TState> = VersionedState & TState;
+
+export interface VersionedState {
+  readonly version: number;
 }
 
-export type Select<TState, TSubState> = (state: TState) => TSubState;
+export type Select<TState, TSubState> = (state: States<TState>) => TSubState;
+
+export type Compare<T> = (a: T, b: T) => boolean;
 
 export type Actions<TActionType extends string> = Action | TypedAction<TActionType>
 
@@ -68,11 +73,17 @@ export interface TypedAction<TActionType extends string> extends Action {
 }
 
 export type ActionReducer<TState, TActionType extends string> =
-  (state: TState | undefined, action: Actions<TActionType>) => TState;
+  (state: States<TState> | undefined, action: Actions<TActionType>) => States<TState>;
 
 export type ActionReducerMap<TState, TActionType extends string> = {
   [p in keyof TState]: ActionReducer<TState[p], TActionType>;
 };
+
+export interface Migration<TState> {
+  // key: versions the migrate function updates from
+  // value: migrate function to transform a state to the next version
+  [key: number]: <TPrevState>(previousState: TPrevState | undefined) => States<TState>;
+}
 
 export type LogLevel = 'error' | 'info' | 'debug';
 

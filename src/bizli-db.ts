@@ -2,13 +2,13 @@ import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { distinctUntilChanged, filter, map, take, takeUntil } from 'rxjs/operators';
 import { FileHandlerImpl } from './file-handler';
 import { combineReducers } from './helpers';
-import { Action, ActionReducer, ActionReducerMap, Actions, BizliDb, Config, FileHandler, Select } from './model';
+import { Action, ActionReducer, ActionReducerMap, Actions, BizliDb, Compare, Config, FileHandler, Select, States } from './model';
 
 export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<TState, TActionType> {
-  private config: Config;
+  private config: Config<TState>;
   private reducer: ActionReducer<TState, TActionType>;
   private actions: BehaviorSubject<Actions<TActionType> | undefined>;
-  private states: BehaviorSubject<TState | undefined>;
+  private states: BehaviorSubject<States<TState> | undefined>;
   private destroy: Subject<void>;
 
   private fileHandler: FileHandler<TState, TActionType>;
@@ -17,33 +17,29 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
     this.config = {};
     this.reducer = (state: any) => state;
     this.actions = new BehaviorSubject<Actions<TActionType> | undefined>(undefined);
-    this.states = new BehaviorSubject<TState | undefined>(undefined);
+    this.states = new BehaviorSubject<States<TState> | undefined>(undefined);
     this.destroy = new Subject();
 
     this.fileHandler = new FileHandlerImpl();
   }
 
-  public configure(config?: Config) {
+  public configure(config?: Config<TState>) {
     this.config = config || this.config;
     this.fileHandler.log({ level: 'debug', name: 'bizli-db ConfigChanged', message: JSON.stringify(this.config) });
-    this.fileHandler.configure(this.config).subscribe(fileLoaded => {
-      this.fileHandler.log({ level: 'debug', name: 'bizli-db FileLoaded', message: JSON.stringify(fileLoaded) });
-      if (fileLoaded.reducer) {
-        this.fileHandler.log({ level: 'debug', name: 'bizli-db ReducerChanged (configure)', message: JSON.stringify(fileLoaded.reducer) });
-        this.reducer = fileLoaded.reducer;
-      }
-      if (fileLoaded.state) {
-        this.fileHandler.log({ level: 'debug', name: 'bizli-db StateChanged (configure)', message: JSON.stringify(fileLoaded.state) });
-        this.states.next(fileLoaded.state);
+    this.fileHandler.configure(this.config).subscribe(state => {
+      this.fileHandler.log({ level: 'debug', name: 'bizli-db StateLoaded', message: JSON.stringify(state) });
+      if (state) {
+        this.fileHandler.log({ level: 'debug', name: 'bizli-db StateChanged (configure)', message: JSON.stringify(state) });
+        this.states.next(state);
       }
     }, error => {
-      this.fileHandler.log({ level: 'error', name: `bizli-db FileLoaded: ${error.name}`, message: error.message, stack: error.stack });
+      this.fileHandler.log({ level: 'error', name: `bizli-db StateLoaded: ${error.name}`, message: error.message, stack: error.stack });
     });
   }
 
   public reduce(reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>) {
     this.reducer = typeof reducer === 'function' ? reducer : combineReducers(reducer);
-    this.fileHandler.log({ level: 'debug', name: 'bizli-db ReducerChanged (reduce)', message: JSON.stringify(this.reducer) });
+    this.fileHandler.log({ level: 'debug', name: 'bizli-db ReducerChanged', message: JSON.stringify(this.reducer) });
     this.fileHandler.reduce(this.reducer);
   }
 
@@ -62,22 +58,22 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
     });
   }
 
-  public select<TSubState>(select: Select<TState, TSubState>, compare?: (a: TSubState, b: TSubState) => boolean): Observable<TSubState> {
+  public select<TSubState>(select: Select<TState, TSubState>, compare?: Compare<TSubState>): Observable<TSubState> {
     this.fileHandler.log({ level: 'debug', name: 'bizli-db StateSelected', message: `Select: ${JSON.stringify(select)}, Compare: ${JSON.stringify(compare)}` });
     return this.states.pipe(
       takeUntil(this.destroy),
       filter(state => !!state),
-      map(state => select(state || {} as TState)),
+      map(state => select(state || {} as States<TState>)),
       distinctUntilChanged(compare),
     );
   }
 
-  public selectRoot(compare?: (a: TState, b: TState) => boolean): Observable<TState> {
+  public selectRoot(compare?: Compare<States<TState>>): Observable<States<TState>> {
     this.fileHandler.log({ level: 'debug', name: 'bizli-db RootStateSelected', message: `Compare: ${JSON.stringify(compare)}` });
     return this.states.pipe(
       takeUntil(this.destroy),
       filter(state => !!state),
-      map(state => state || {} as TState),
+      map(state => state || {} as States<TState>),
       distinctUntilChanged(compare),
     );
   }

@@ -1,10 +1,10 @@
 import { BehaviorSubject, Observable, of, Subject } from 'rxjs';
 import { exhaustMap, filter, map, take, takeUntil } from 'rxjs/operators';
-import { createFilePath, fileExists, mustBeLogged, mustBeLoggedToConsole, readFile, writeFile } from './helpers';
-import { ActionReducer, Actions, Config, File, FileHandler, FileLoaded, Log } from './model';
+import { createFilePath, fileExists, last, mustBeLogged, mustBeLoggedToConsole, readFile, writeFile } from './helpers';
+import { ActionReducer, Actions, Config, File, FileHandler, Log, States, VersionedState } from './model';
 
 export class FileHandlerImpl<TState, TActionType extends string> implements FileHandler<TState, TActionType> {
-  private config: Config;
+  private config: Config<TState>;
   private files: BehaviorSubject<File<TState, TActionType> | undefined>;
   private destroy: Subject<void>;
 
@@ -26,13 +26,46 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
     });
   }
 
-  public configure(config?: Config): Observable<FileLoaded<TState, TActionType>> {
+  public configure(config?: Config<TState>): Observable<States<TState> | undefined> {
     this.config = config || this.config;
     this.log({ level: 'debug', name: 'file-handler ConfigChanged', message: JSON.stringify(this.config) });
     const fileObservable =
       fileExists(createFilePath(this.config.fileName, this.config.path)).pipe(
         exhaustMap(exists => {
           if (exists) {
+            if (this.config.migrate) {
+              return readFile(createFilePath(this.config.fileName, this.config.path), 'utf8').pipe(
+                map(currentFileString => JSON.parse(currentFileString) as File<any, TActionType>),
+                map(file => {
+                  const lastState = last(file.states) as VersionedState;
+                  const migrate = this.config.migrate || {};
+                  const migratedState = Object.keys(migrate)
+                    .map(x => +x)
+                    .sort((a, b) => a - b)
+                    .reduce((state, key) => {
+                      if (state.version === key) {
+                        const migration = migrate[key](state);
+                        const minNextVersion = key + 1;
+                        return {
+                          ...migration,
+                          version: migration.version >= minNextVersion ? migration.version : minNextVersion,
+                        };
+                      }
+                      return state;
+                    }, lastState) as States<TState>;
+                  const migratedStateArr = migratedState ? [migratedState] : [];
+                  return {
+                    ...file,
+                    states: file && file.states ? [...file.states, ...migratedStateArr] : migratedStateArr,
+                  } as File<TState, TActionType>;
+                }),
+                exhaustMap(file =>
+                  writeFile(createFilePath(this.config.fileName, this.config.path), JSON.stringify(file), 'utf8').pipe(
+                    map(() => file),
+                  ),
+                ),
+              );
+            }
             return readFile(createFilePath(this.config.fileName, this.config.path), 'utf8').pipe(
               map(currentFileString => JSON.parse(currentFileString) as File<TState, TActionType>),
             );
@@ -43,16 +76,14 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
     fileObservable.subscribe(file => {
       this.log({ level: 'debug', name: 'file-handler FileLoaded', message: JSON.stringify(file) });
       if (file) {
+        this.log({ level: 'debug', name: 'file-handler FileChanged', message: JSON.stringify(file) });
         this.files.next(file);
       }
     }, error => {
       this.log({ level: 'error', message: error.message, name: `file-handler FileLoaded: ${error.name}`, stack: error.stack });
     });
     return fileObservable.pipe(
-      map(file => ({
-        reducer: file && file.reducers && file.reducers.length > 0 && file.reducers[file.reducers.length - 1] || undefined,
-        state: file && file.states && file.states.length > 0 && file.states[file.states.length - 1] || undefined,
-      })),
+      map(file => last(file && file.states)),
     );
   }
 
@@ -84,7 +115,7 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
     });
   }
 
-  public changeState(state: TState | undefined) {
+  public changeState(state: States<TState> | undefined) {
     this.log({ level: 'debug', name: 'file-handler StateChanged', message: JSON.stringify(state) });
     this.files.pipe(
       take(1),
