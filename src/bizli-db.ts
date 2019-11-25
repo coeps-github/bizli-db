@@ -1,5 +1,5 @@
 import { BehaviorSubject, combineLatest, Observable, Subject } from 'rxjs';
-import { filter, map, take, takeUntil } from 'rxjs/operators';
+import { distinctUntilChanged, filter, map, take, takeUntil } from 'rxjs/operators';
 import { FileHandlerImpl } from './file-handler';
 import { combineReducers } from './helpers';
 import { Action, ActionReducer, ActionReducerMap, Actions, BizliDb, Config, FileHandler, Log, Select } from './model';
@@ -138,14 +138,21 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
     });
   }
 
-  public select<TSubState>(select?: Select<TState, TSubState>): Observable<TState | TSubState> {
+  public select<TSubState>(select: Select<TState, TSubState>, compare?: (a: TSubState, b: TSubState) => boolean): Observable<TSubState> {
     return this.states.pipe(
       takeUntil(this.destroy),
       filter(state => !!state),
-      map(state => {
-        const stateDefined = state || {} as TState;
-        return select ? select(stateDefined) : stateDefined;
-      }),
+      map(state => select(state || {} as TState)),
+      distinctUntilChanged(compare),
+    );
+  }
+
+  public selectRoot(compare?: (a: TState, b: TState) => boolean): Observable<TState> {
+    return this.states.pipe(
+      takeUntil(this.destroy),
+      filter(state => !!state),
+      map(state => state || {} as TState),
+      distinctUntilChanged(compare),
     );
   }
 

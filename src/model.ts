@@ -7,8 +7,10 @@ export interface BizliDb<TState, TActionType extends string> {
 
   dispatch(action: Actions<TActionType>): void;
 
-  select<TSubState>(select?: Select<TState, TSubState>): Observable<TState | TSubState>;
+  select<TSubState>(select: Select<TState, TSubState>, compare?: (a: TSubState, b: TSubState) => boolean): Observable<TSubState>;
 
+  selectRoot(compare?: (a: TState, b: TState) => boolean): Observable<TState>;
+  
   observe(actions: Array<string | TActionType>): Observable<Actions<TActionType>>;
 
   dispose(): void;

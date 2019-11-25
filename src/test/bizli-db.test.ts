@@ -105,7 +105,7 @@ describe('bizli-db', () => {
     const bizliDb = new BizliDbImpl();
     bizliDb.reduce((state = { value: 'hoi' }) => state);
     bizliDb.dispatch({ type: 'bla' });
-    bizliDb.select().pipe(take(1)).subscribe(state => {
+    bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
       expect(state).toEqual({ value: 'hoi' });
       done();
     });
@@ -116,7 +116,7 @@ describe('bizli-db', () => {
     bizliDb.reduce((state = { value: 'hoi' }) => state);
     bizliDb.dispatch({ type: 'bla' });
     bizliDb.reduce((state = { value: 'du' }) => state);
-    bizliDb.select().pipe(take(1)).subscribe(state => {
+    bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
       expect(state).toEqual({ value: 'hoi' });
       done();
     });
@@ -128,7 +128,7 @@ describe('bizli-db', () => {
     bizliDb.dispatch({ type: 'bla' });
     bizliDb.reduce((state = { value: 'du' }) => state);
     bizliDb.dispatch({ type: 'bla' });
-    bizliDb.select().pipe(take(1)).subscribe(state => {
+    bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
       expect(state).toEqual({ value: 'hoi' });
       done();
     });
@@ -138,7 +138,7 @@ describe('bizli-db', () => {
     const bizliDb = new BizliDbImpl();
     bizliDb.reduce(reducer1);
     bizliDb.dispatch({ type: 'test' });
-    bizliDb.select().pipe(take(1)).subscribe(state => {
+    bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
       expect(state).toEqual(expectedSubState1);
       done();
     });
@@ -149,7 +149,7 @@ describe('bizli-db', () => {
     bizliDb.reduce(reducer1);
     bizliDb.dispatch({ type: 'test' });
     bizliDb.reduce(reducer2);
-    bizliDb.select().pipe(take(1)).subscribe(state => {
+    bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
       expect(state).toEqual(expectedSubState1);
       done();
     });
@@ -161,7 +161,7 @@ describe('bizli-db', () => {
     bizliDb.dispatch({ type: 'test' });
     bizliDb.reduce(reducer2);
     bizliDb.dispatch({ type: 'test' });
-    bizliDb.select().pipe(take(1)).subscribe(state => {
+    bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
       expect(state).toEqual({ ...expectedSubState1, ...expectedSubState2 });
       done();
     });
@@ -171,7 +171,7 @@ describe('bizli-db', () => {
     const bizliDb = new BizliDbImpl();
     bizliDb.reduce(reducerMap1);
     bizliDb.dispatch({ type: 'bla' });
-    bizliDb.select().pipe(take(1)).subscribe(state => {
+    bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
       expect(state).toEqual({
         subState1: {},
         subState2: undefined,
@@ -185,7 +185,7 @@ describe('bizli-db', () => {
     bizliDb.reduce(reducerMap1);
     bizliDb.dispatch({ type: 'bla' });
     bizliDb.reduce(reducerMap2);
-    bizliDb.select().pipe(take(1)).subscribe(state => {
+    bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
       expect(state).toEqual({
         subState1: {},
         subState2: undefined,
@@ -200,7 +200,7 @@ describe('bizli-db', () => {
     bizliDb.dispatch({ type: 'bla' });
     bizliDb.reduce(reducerMap2);
     bizliDb.dispatch({ type: 'bla' });
-    bizliDb.select().pipe(take(1)).subscribe(state => {
+    bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
       expect(state).toEqual({
         subState1: {},
         subState2: undefined,
@@ -215,7 +215,7 @@ describe('bizli-db', () => {
     const bizliDb = new BizliDbImpl();
     bizliDb.reduce(reducerMap1);
     bizliDb.dispatch({ type: 'test' });
-    bizliDb.select().pipe(take(1)).subscribe(state => {
+    bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
       expect(state).toEqual(expectedState1);
       done();
     });
@@ -226,7 +226,7 @@ describe('bizli-db', () => {
     bizliDb.reduce(reducerMap1);
     bizliDb.dispatch({ type: 'test' });
     bizliDb.reduce(reducerMap2);
-    bizliDb.select().pipe(take(1)).subscribe(state => {
+    bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
       expect(state).toEqual(expectedState1);
       done();
     });
@@ -238,7 +238,7 @@ describe('bizli-db', () => {
     bizliDb.dispatch({ type: 'test' });
     bizliDb.reduce(reducerMap2);
     bizliDb.dispatch({ type: 'test' });
-    bizliDb.select().pipe(take(1)).subscribe(state => {
+    bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
       expect(state).toEqual({ ...expectedState1, ...expectedState2 });
       done();
     });
