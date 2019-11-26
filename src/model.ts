@@ -19,7 +19,7 @@ export interface BizliDb<TState, TActionType extends string> {
 export interface Config<TState> {
   readonly fileName?: string; // default db.json
   readonly path?: string; // default executing directory
-  readonly migrate?: Migration<TState> // default nothing to migrate
+  readonly migration?: Migration<TState> // default nothing to migrate
   readonly logLevel?: LogLevel; // default info
   readonly logToConsole?: boolean; // default false
 
@@ -79,7 +79,13 @@ export type ActionReducerMap<TState, TActionType extends string> = {
   [p in keyof TState]: ActionReducer<TState[p], TActionType>;
 };
 
-export interface Migration<TState> {
+export type Migration<TState> = MigrationTargetVersion & MigrationFunctions<TState>;
+
+export interface MigrationTargetVersion {
+  readonly targetVersion: number;
+}
+
+export interface MigrationFunctions<TState> {
   // key: versions the migrate function updates from
   // value: migrate function to transform a state to the next version
   [key: number]: <TPrevState>(previousState: TPrevState | undefined) => States<TState>;

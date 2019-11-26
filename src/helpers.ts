@@ -3,7 +3,7 @@ import { NoParamCallback, PathLike, WriteFileOptions } from 'fs';
 import * as fsPath from 'path';
 import { bindNodeCallback, Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { ActionReducer, ActionReducerMap, Actions, Config, LogLevel, States } from './model';
+import { ActionReducer, ActionReducerMap, Actions, Config, LogLevel, Migration, States, VersionedState } from './model';
 
 export function combineReducers<TState, TActionType extends string>(
   actionReducerMap: ActionReducerMap<TState, TActionType>,
@@ -69,4 +69,28 @@ export function mustBeLoggedToConsole<TState>(logLevel: LogLevel, config: Config
 
 export function last<T>(array?: T[]): T | undefined {
   return array && array.length > 0 ? array[array.length - 1] : undefined;
+}
+
+export function migrate<TState>(oldState: VersionedState, migration: Migration<TState> = { targetVersion: oldState.version }): States<TState> {
+  const resultState = Object.keys(migration)
+    .filter(key => key !== 'version')
+    .map(x => +x)
+    .sort((a, b) => a - b)
+    .reduce((state, fromVersionAndKey) => {
+      if (state.version === fromVersionAndKey) {
+        const migrationFn = migration[fromVersionAndKey];
+        const migratedState = migrationFn(state);
+        const minNextVersion = fromVersionAndKey + 1;
+        return {
+          ...migratedState,
+          version: migratedState.version >= minNextVersion ? migratedState.version : minNextVersion,
+        };
+      }
+      return state;
+    }, oldState) as States<TState>;
+  if (migration.targetVersion !== resultState.version) {
+    throw new Error(`Migration Error: Mismatch of expected ${migration.targetVersion} vs actual ${resultState.version} target version of migrated state!
+    Please make sure to set the new version of the state in the migration functions properly and provide a function for each version jump.`);
+  }
+  return resultState;
 }

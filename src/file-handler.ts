@@ -1,6 +1,6 @@
 import { BehaviorSubject, Observable, of, Subject } from 'rxjs';
 import { exhaustMap, filter, map, take, takeUntil } from 'rxjs/operators';
-import { createFilePath, fileExists, last, mustBeLogged, mustBeLoggedToConsole, readFile, writeFile } from './helpers';
+import { createFilePath, fileExists, last, migrate, mustBeLogged, mustBeLoggedToConsole, readFile, writeFile } from './helpers';
 import { ActionReducer, Actions, Config, File, FileHandler, Log, States, VersionedState } from './model';
 
 export class FileHandlerImpl<TState, TActionType extends string> implements FileHandler<TState, TActionType> {
@@ -33,27 +33,13 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
       fileExists(createFilePath(this.config.fileName, this.config.path)).pipe(
         exhaustMap(exists => {
           if (exists) {
-            if (this.config.migrate) {
+            if (this.config.migration) {
               return readFile(createFilePath(this.config.fileName, this.config.path), 'utf8').pipe(
                 map(currentFileString => JSON.parse(currentFileString) as File<any, TActionType>),
                 map(file => {
                   const lastState = last(file.states) as VersionedState;
-                  const migrate = this.config.migrate || {};
-                  const migratedState = Object.keys(migrate)
-                    .map(x => +x)
-                    .sort((a, b) => a - b)
-                    .reduce((state, key) => {
-                      if (state.version === key) {
-                        const migration = migrate[key](state);
-                        const minNextVersion = key + 1;
-                        return {
-                          ...migration,
-                          version: migration.version >= minNextVersion ? migration.version : minNextVersion,
-                        };
-                      }
-                      return state;
-                    }, lastState) as States<TState>;
-                  const migratedStateArr = migratedState ? [migratedState] : [];
+                  const migratedState = migrate(lastState, this.config.migration);
+                  const migratedStateArr = lastState.version !== migratedState.version ? [migratedState] : [];
                   return {
                     ...file,
                     states: file && file.states ? [...file.states, ...migratedStateArr] : migratedStateArr,
