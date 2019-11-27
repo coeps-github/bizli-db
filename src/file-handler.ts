@@ -1,6 +1,6 @@
 import { BehaviorSubject, Observable, of, Subject } from 'rxjs';
-import { exhaustMap, filter, map, take, takeUntil } from 'rxjs/operators';
-import { createFilePath, fileExists, last, migrate, mustBeLogged, mustBeLoggedToConsole, readFile, writeFile } from './helpers';
+import { concatMap, exhaustMap, filter, map, take, takeUntil } from 'rxjs/operators';
+import { createFilePath, fileExists, last, migrate, mustBeLogged, mustBeLoggedToConsole, readFile, writeFileAtomic } from './helpers';
 import { ActionReducer, Actions, Config, File, FileHandler, Log, States, VersionedState } from './model';
 
 export class FileHandlerImpl<TState, TActionType extends string> implements FileHandler<TState, TActionType> {
@@ -17,7 +17,7 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
       takeUntil(this.destroy),
       filter(file => !!file),
       exhaustMap(file =>
-        writeFile(createFilePath(this.config.fileName, this.config.path), JSON.stringify(file), 'utf8'),
+        writeFileAtomic(createFilePath(this.config.fileName, this.config.path), JSON.stringify(file), 'utf8'),
       ),
     ).subscribe(() => {
       this.logToConsole({ level: 'debug', name: 'file-handler FileWritten', message: '...' });
@@ -31,7 +31,7 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
     this.log({ level: 'debug', name: 'file-handler ConfigChanged', message: JSON.stringify(this.config) });
     const fileObservable =
       fileExists(createFilePath(this.config.fileName, this.config.path)).pipe(
-        exhaustMap(exists => {
+        concatMap(exists => {
           if (exists) {
             if (this.config.migration) {
               return readFile(createFilePath(this.config.fileName, this.config.path), 'utf8').pipe(
@@ -45,8 +45,8 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
                     states: file && file.states ? [...file.states, ...migratedStateArr] : migratedStateArr,
                   } as File<TState, TActionType>;
                 }),
-                exhaustMap(file =>
-                  writeFile(createFilePath(this.config.fileName, this.config.path), JSON.stringify(file), 'utf8').pipe(
+                concatMap(file =>
+                  writeFileAtomic(createFilePath(this.config.fileName, this.config.path), JSON.stringify(file), 'utf8').pipe(
                     map(() => file),
                   ),
                 ),

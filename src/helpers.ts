@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import { NoParamCallback, PathLike, WriteFileOptions } from 'fs';
 import * as fsPath from 'path';
 import { bindNodeCallback, Observable, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { catchError, concatMap, map } from 'rxjs/operators';
 import { ActionReducer, ActionReducerMap, Actions, Config, LogLevel, Migration, States, VersionedState } from './model';
 
 export function combineReducers<TState, TActionType extends string>(
@@ -27,6 +27,15 @@ export function fileExists(filePath: string): Observable<boolean> {
   );
 }
 
+export function renameFile(oldFilePath: string, newFilePath: string): Observable<void> {
+  const renameFileBinder = bindNodeCallback((
+    oldPath: PathLike,
+    newPath: PathLike,
+    callback: NoParamCallback,
+  ) => fs.rename(oldPath, newPath, callback));
+  return renameFileBinder(oldFilePath, newFilePath);
+}
+
 export function readFile(filePath: string, fileEncoding: string): Observable<string> {
   const readFileBinder = bindNodeCallback((
     path: PathLike | number,
@@ -46,8 +55,20 @@ export function writeFile(filePath: string, fileData: string, fileEncoding: stri
   return writeFileBinder(filePath, fileData, { encoding: fileEncoding });
 }
 
+export function writeFileAtomic(filePath: string, fileData: string, fileEncoding: string): Observable<void> {
+  const tempFilePath = createTempFilePath(filePath);
+  return writeFile(tempFilePath, fileData, fileEncoding).pipe(
+    concatMap(() => renameFile(tempFilePath, filePath)),
+  );
+}
+
 export function createFilePath(fileName: string = 'db.json', path: string = ''): string {
   return fsPath.join(fsPath.resolve(path), fileName);
+}
+
+export function createTempFilePath(filePath: string): string {
+  const extension = fsPath.extname(filePath);
+  return fsPath.join(fsPath.resolve(fsPath.dirname(filePath)), `${fsPath.basename(filePath, extension)}.temp${extension}`);
 }
 
 export function mustBeLogged<TState>(logLevel: LogLevel, config: Config<TState>): boolean {
