@@ -6,6 +6,7 @@ import {
   createTempFilePath,
   fileExists,
   last,
+  migrate,
   mustBeLogged,
   mustBeLoggedToConsole,
   readFile,
@@ -295,6 +296,72 @@ describe('helpers', () => {
     });
   });
 
-  // TODO: migrate
+  describe('migrate', () => {
+    test('should return the same state when no migration is supplied', () => {
+      const state = { version: 1, test: 'test' };
+      expect(migrate(state)).toBe(state);
+    });
+
+    test('should return correct state with single migration function', () => {
+      const state = { version: 1, test: 'test' };
+      expect(migrate(state, {
+        targetVersion: 2,
+        1: (s) => ({ ...s, version: 2 }),
+      })).toEqual({ ...state, version: 2 });
+    });
+
+    test('should return correct state with multiple migration functions', () => {
+      const state = { version: 1, test: 'test' };
+      expect(migrate(state, {
+        targetVersion: 3,
+        1: (s) => ({ ...s, version: 2 }),
+        2: (s) => ({ ...s, version: 3 }),
+      })).toEqual({ ...state, version: 3 });
+    });
+
+    test('should return correct state with multiple migration functions and big version gaps', () => {
+      const state = { version: 1, test: 'test' };
+      expect(migrate(state, {
+        targetVersion: 100,
+        1: (s) => ({ ...s, version: 28 }),
+        28: (s) => ({ ...s, version: 94 }),
+        94: (s) => ({ ...s, version: 100 }),
+      })).toEqual({ ...state, version: 100 });
+    });
+
+    test('should return correct state with multiple migration functions and not using all of them', () => {
+      const state = { version: 1, test: 'test' };
+      expect(migrate(state, {
+        targetVersion: 100,
+        1: (s) => ({ ...s, version: 94 }),
+        28: (s) => ({ ...s, version: 94 }),
+        94: (s) => ({ ...s, version: 100 }),
+      })).toEqual({ ...state, version: 100 });
+    });
+
+    test('should fail when migration with future targetVersion but no migration functions', () => {
+      const state = { version: 1, test: 'test' };
+      expect(() => migrate(state, { targetVersion: 30 })).toThrow();
+    });
+
+    test('should fail when migration with future targetVersion and single migration function', () => {
+      const state = { version: 1, test: 'test' };
+      expect(() => migrate(state, { targetVersion: 30, 1: (s) => ({ ...s, version: 2 }) })).toThrow();
+    });
+
+    test('should fail when migration with past targetVersion and single migration function', () => {
+      const state = { version: 1, test: 'test' };
+      expect(() => migrate(state, { targetVersion: 0, 1: (s) => ({ ...s, version: 2 }) })).toThrow();
+    });
+
+    test('should fail when migration with future targetVersion and multiple migration functions', () => {
+      const state = { version: 1, test: 'test' };
+      expect(() => migrate(state, {
+        targetVersion: 30,
+        1: (s) => ({ ...s, version: 2 }),
+        2: (s) => ({ ...s, version: 3 }),
+      })).toThrow();
+    });
+  });
 
 });
