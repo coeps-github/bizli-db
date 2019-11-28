@@ -1,6 +1,5 @@
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { distinctUntilChanged, filter, map, take, takeUntil } from 'rxjs/operators';
-import { FileHandlerImpl } from './file-handler';
 import { combineReducers } from './helpers';
 import { Action, ActionReducer, ActionReducerMap, Actions, BizliDb, Compare, Config, FileHandler, Select, States } from './model';
 
@@ -11,16 +10,12 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
   private states: BehaviorSubject<States<TState> | undefined>;
   private destroy: Subject<void>;
 
-  private fileHandler: FileHandler<TState, TActionType>;
-
-  constructor() {
+  constructor(private fileHandler: FileHandler<TState, TActionType>) {
     this.config = {};
     this.reducer = (state: any) => state;
     this.actions = new BehaviorSubject<Actions<TActionType> | undefined>(undefined);
     this.states = new BehaviorSubject<States<TState> | undefined>(undefined);
     this.destroy = new Subject();
-
-    this.fileHandler = new FileHandlerImpl();
   }
 
   public configure(config?: Config<TState>) {

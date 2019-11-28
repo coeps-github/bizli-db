@@ -1,6 +1,6 @@
 import { take } from 'rxjs/operators';
 import { BizliDbImpl } from '../bizli-db';
-import { ActionReducerMap, Actions } from '../model';
+import { ActionReducerMap, Actions, FileHandler } from '../model';
 
 interface State {
   subState1: SubState1,
@@ -99,10 +99,19 @@ const expectedSubState1: SubState1 = {
 const expectedSubState2: SubState2 = {
   value2: 'test2',
 };
+const FileHandlerMock = jest.fn<FileHandler<any, any>, any>(() => ({
+  changeState: jest.fn(),
+  configure: jest.fn(),
+  dispatch: jest.fn(),
+  dispose: jest.fn(),
+  log: jest.fn(),
+  reduce: jest.fn(),
+}));
 
 describe('bizli-db', () => {
   test('BizliDbImpl should add a single reducer and have the reducers initial state in state, when dispatching an unhandled action', done => {
-    const bizliDb = new BizliDbImpl();
+    const mock = new FileHandlerMock();
+    const bizliDb = new BizliDbImpl(mock);
     bizliDb.reduce((state = { value: 'hoi' }) => state);
     bizliDb.dispatch({ type: 'bla' });
     bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
@@ -112,7 +121,8 @@ describe('bizli-db', () => {
   });
 
   test('BizliDbImpl should add two single reducers and have the first reducers initial state in state, when dispatching an unhandled action before the second reducer is added', done => {
-    const bizliDb = new BizliDbImpl();
+    const mock = new FileHandlerMock();
+    const bizliDb = new BizliDbImpl(mock);
     bizliDb.reduce((state = { value: 'hoi' }) => state);
     bizliDb.dispatch({ type: 'bla' });
     bizliDb.reduce((state = { value: 'du' }) => state);
@@ -123,7 +133,8 @@ describe('bizli-db', () => {
   });
 
   test('BizliDbImpl should add two single reducers and have the first reducers initial state in state, when dispatching an unhandled action after each reducer is added', done => {
-    const bizliDb = new BizliDbImpl();
+    const mock = new FileHandlerMock();
+    const bizliDb = new BizliDbImpl(mock);
     bizliDb.reduce((state = { value: 'hoi' }) => state);
     bizliDb.dispatch({ type: 'bla' });
     bizliDb.reduce((state = { value: 'du' }) => state);
@@ -135,7 +146,8 @@ describe('bizli-db', () => {
   });
 
   test('BizliDbImpl should add a single reducer and have the modified state in state, when dispatching the test action', done => {
-    const bizliDb = new BizliDbImpl();
+    const mock = new FileHandlerMock();
+    const bizliDb = new BizliDbImpl(mock);
     bizliDb.reduce(reducer1);
     bizliDb.dispatch({ type: 'test' });
     bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
@@ -145,7 +157,8 @@ describe('bizli-db', () => {
   });
 
   test('BizliDbImpl should add two single reducers and have the modified state of the first reducer in state, when dispatching the test action before the second reducer is added', done => {
-    const bizliDb = new BizliDbImpl();
+    const mock = new FileHandlerMock();
+    const bizliDb = new BizliDbImpl(mock);
     bizliDb.reduce(reducer1);
     bizliDb.dispatch({ type: 'test' });
     bizliDb.reduce(reducer2);
@@ -156,7 +169,8 @@ describe('bizli-db', () => {
   });
 
   test('BizliDbImpl should add two single reducers and have the modified state of both reducers in state, when dispatching the test action after both reducers are added', done => {
-    const bizliDb = new BizliDbImpl();
+    const mock = new FileHandlerMock();
+    const bizliDb = new BizliDbImpl(mock);
     bizliDb.reduce(reducer1);
     bizliDb.dispatch({ type: 'test' });
     bizliDb.reduce(reducer2);
@@ -168,7 +182,8 @@ describe('bizli-db', () => {
   });
 
   test('BizliDbImpl should add a reducer map and have the reducers initial state in state, when dispatching an unhandled action', done => {
-    const bizliDb = new BizliDbImpl();
+    const mock = new FileHandlerMock();
+    const bizliDb = new BizliDbImpl(mock);
     bizliDb.reduce(reducerMap1);
     bizliDb.dispatch({ type: 'bla' });
     bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
@@ -181,7 +196,8 @@ describe('bizli-db', () => {
   });
 
   test('BizliDbImpl should add two reducer maps and have the first reducers initial state in state, when dispatching an unhandled action before the second reducer is added', done => {
-    const bizliDb = new BizliDbImpl();
+    const mock = new FileHandlerMock();
+    const bizliDb = new BizliDbImpl(mock);
     bizliDb.reduce(reducerMap1);
     bizliDb.dispatch({ type: 'bla' });
     bizliDb.reduce(reducerMap2);
@@ -195,7 +211,8 @@ describe('bizli-db', () => {
   });
 
   test('BizliDbImpl should add two reducer maps and have both reducers initial state in state, when dispatching an unhandled action after each reducer is added', done => {
-    const bizliDb = new BizliDbImpl();
+    const mock = new FileHandlerMock();
+    const bizliDb = new BizliDbImpl(mock);
     bizliDb.reduce(reducerMap1);
     bizliDb.dispatch({ type: 'bla' });
     bizliDb.reduce(reducerMap2);
@@ -212,7 +229,8 @@ describe('bizli-db', () => {
   });
 
   test('BizliDbImpl should add a reducer map and have the modified state in state, when dispatching the test action', done => {
-    const bizliDb = new BizliDbImpl();
+    const mock = new FileHandlerMock();
+    const bizliDb = new BizliDbImpl(mock);
     bizliDb.reduce(reducerMap1);
     bizliDb.dispatch({ type: 'test' });
     bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
@@ -222,7 +240,8 @@ describe('bizli-db', () => {
   });
 
   test('BizliDbImpl should add two reducer maps and have the modified state of the first reducer in state, when dispatching the test action before the second reducer is added', done => {
-    const bizliDb = new BizliDbImpl();
+    const mock = new FileHandlerMock();
+    const bizliDb = new BizliDbImpl(mock);
     bizliDb.reduce(reducerMap1);
     bizliDb.dispatch({ type: 'test' });
     bizliDb.reduce(reducerMap2);
@@ -233,7 +252,8 @@ describe('bizli-db', () => {
   });
 
   test('BizliDbImpl should add two reducer maps and have the modified state of both reducers in state, when dispatching the test action after both reducers are added', done => {
-    const bizliDb = new BizliDbImpl();
+    const mock = new FileHandlerMock();
+    const bizliDb = new BizliDbImpl(mock);
     bizliDb.reduce(reducerMap1);
     bizliDb.dispatch({ type: 'test' });
     bizliDb.reduce(reducerMap2);
