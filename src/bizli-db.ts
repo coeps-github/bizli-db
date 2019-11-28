@@ -9,14 +9,12 @@ export function BizliDb<TState, TActionType extends string>(): BizliDb<TState, T
 }
 
 export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<TState, TActionType> {
-  private config: Config<TState>;
   private reducer: ActionReducer<TState, TActionType>;
   private actions: BehaviorSubject<Actions<TActionType> | undefined>;
   private states: BehaviorSubject<States<TState> | undefined>;
   private destroy: Subject<void>;
 
   constructor(private fileHandler: FileHandler<TState, TActionType>) {
-    this.config = {};
     this.reducer = (state: any) => state;
     this.actions = new BehaviorSubject<Actions<TActionType> | undefined>(undefined);
     this.states = new BehaviorSubject<States<TState> | undefined>(undefined);
@@ -24,9 +22,8 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
   }
 
   public configure(config?: Config<TState>) {
-    this.config = config || this.config;
-    this.fileHandler.log({ level: 'debug', name: 'bizli-db ConfigChanged', message: JSON.stringify(this.config) });
-    this.fileHandler.configure(this.config).subscribe(state => {
+    this.fileHandler.log({ level: 'debug', name: 'bizli-db ConfigChanged', message: JSON.stringify(config) });
+    this.fileHandler.configure(config).subscribe(state => {
       this.fileHandler.log({ level: 'debug', name: 'bizli-db StateLoaded', message: JSON.stringify(state) });
       if (state) {
         this.fileHandler.log({ level: 'debug', name: 'bizli-db StateChanged (configure)', message: JSON.stringify(state) });
@@ -50,9 +47,9 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
       const newState = this.reducer(state, action);
       this.fileHandler.log({ level: 'debug', name: 'bizli-db StateChanged (dispatch)', message: JSON.stringify(newState) });
       this.states.next(newState);
-      this.fileHandler.changeState(state);
+      this.fileHandler.changeState(newState);
 
-      this.fileHandler.log({ level: 'debug', name: 'bizli-db ActionDispatched', message: JSON.stringify(state) });
+      this.fileHandler.log({ level: 'debug', name: 'bizli-db ActionDispatched', message: JSON.stringify(action) });
       this.actions.next(action);
       this.fileHandler.dispatch(action);
     });
@@ -64,6 +61,7 @@ export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<
       takeUntil(this.destroy),
       filter(state => !!state),
       map(state => select(state || {} as States<TState>)),
+      filter(subState => !!subState),
       distinctUntilChanged(compare),
     );
   }
