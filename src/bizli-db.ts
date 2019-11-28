@@ -1,7 +1,12 @@
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { distinctUntilChanged, filter, map, take, takeUntil } from 'rxjs/operators';
+import { FileHandlerImpl } from './file-handler';
 import { combineReducers } from './helpers';
 import { Action, ActionReducer, ActionReducerMap, Actions, BizliDb, Compare, Config, FileHandler, Select, States } from './model';
+
+export function BizliDb<TState, TActionType extends string>(): BizliDb<TState, TActionType> {
+  return new BizliDbImpl<TState, TActionType>(new FileHandlerImpl<TState, TActionType>());
+}
 
 export class BizliDbImpl<TState, TActionType extends string> implements BizliDb<TState, TActionType> {
   private config: Config<TState>;
