@@ -1,6 +1,6 @@
 # bizli-db
 
-simple and small in memory database with random access file persistence
+simple and small in memory database with json file persistence
 
 ## install
 
