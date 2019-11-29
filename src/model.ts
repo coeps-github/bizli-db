@@ -1,22 +1,27 @@
 import { Observable } from 'rxjs';
 
-export interface BizliDb<TState, TActionType extends string> {
+export interface BizliDbFactoryConfig<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
+  readonly config?: Config<TState>;
+  readonly reducer?: ActionReducer<TState, TActionType, TAction> | ActionReducerMap<TState, TActionType, TAction>;
+}
+
+export interface BizliDb<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
   configure(config?: Config<TState>): void;
 
-  reduce(reducer: ActionReducer<TState, TActionType> | ActionReducerMap<TState, TActionType>): void;
+  reduce(reducer: ActionReducer<TState, TActionType, TAction> | ActionReducerMap<TState, TActionType, TAction>): void;
 
-  dispatch(action: Actions<TActionType>): void;
+  dispatch(action: TAction): void;
 
-  select<TSubState>(select: Select<TState, TSubState>, compare?: Compare<TSubState>): Observable<TSubState>;
+  select<TSubState>(select?: Select<TState, TSubState>, compare?: Compare<TSubState>): Observable<TSubState>;
 
-  selectRoot(compare?: Compare<States<TState>>): Observable<States<TState>>;
+  select(select?: Select<TState, TState>, compare?: Compare<TState>): Observable<TState>;
 
-  observe(actions: Array<string | TActionType>): Observable<Actions<TActionType>>;
+  observe(actions: Array<string | TActionType>): Observable<TAction>;
 
   dispose(): void;
 }
 
-export interface Config<TState> {
+export interface Config<TState extends VersionedState> {
   readonly fileName?: string; // default db.json
   readonly path?: string; // default executing directory
   readonly migration?: Migration<TState> // default nothing to migrate
@@ -30,39 +35,35 @@ export interface Config<TState> {
   // readonly compress: boolean; // zip rotated files
 }
 
-export interface FileHandler<TState, TActionType extends string> {
-  configure(config?: Config<TState>): Observable<States<TState> | undefined>;
+export interface FileHandler<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
+  configure(config?: Config<TState>): Observable<TState | undefined>;
 
-  reduce(reducer: ActionReducer<TState, TActionType>): void;
+  reduce(reducer: ActionReducer<TState, TActionType, TAction>): void;
 
-  dispatch(action: Actions<TActionType>): void;
+  dispatch(action: TAction): void;
 
-  changeState(state: States<TState> | undefined): void;
+  changeState(state: TState | undefined): void;
 
   log(log: Log): void;
 
   dispose(): void;
 }
 
-export interface File<TState, TActionType extends string> {
+export interface File<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
   readonly configs: Array<Config<TState>>;
-  readonly reducers: Array<ActionReducer<TState, TActionType>>;
-  readonly actions: Array<Actions<TActionType>>;
-  readonly states: Array<States<TState>>;
+  readonly reducers: Array<ActionReducer<TState, TActionType, TAction>>;
+  readonly actions: TAction[];
+  readonly states: TState[];
   readonly logs: Log[];
 }
-
-export type States<TState> = VersionedState & TState;
 
 export interface VersionedState {
   readonly version: number;
 }
 
-export type Select<TState, TSubState> = (state: States<TState>) => TSubState;
+export type Select<TState, TSubState> = (state: TState) => TSubState;
 
 export type Compare<T> = (a: T, b: T) => boolean;
-
-export type Actions<TActionType extends string> = Action | TypedAction<TActionType>
 
 export interface Action {
   readonly type: string;
@@ -72,23 +73,36 @@ export interface TypedAction<TActionType extends string> extends Action {
   readonly type: TActionType
 }
 
-export type ActionReducer<TState, TActionType extends string> =
-  (state: States<TState> | undefined, action: Actions<TActionType>) => States<TState>;
+export interface On<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
+  reducer: ActionReducer<TState, TActionType, TAction>,
+  types: TActionType[]
+}
 
-export type ActionReducerMap<TState, TActionType extends string> = {
-  [p in keyof TState]: ActionReducer<TState[p], TActionType>;
-};
+export interface OnSubState<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
+  reducer: SubStateActionReducer<TSubState, TActionType, TAction>,
+  types: TActionType[]
+}
 
-export type Migration<TState> = MigrationTargetVersion & MigrationFunctions<TState>;
+export type ActionReducer<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> =
+  (state: TState | undefined, action: TAction) => TState;
+
+export type ActionReducerMap<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> = {
+  [p in keyof Omit<TState, 'version'>]: SubStateActionReducer<Omit<TState, 'version'>[p], TActionType, TAction>;
+} & VersionedState;
+
+export type SubStateActionReducer<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> =
+  (state: TSubState | undefined, action: TAction) => TSubState;
+
+export type Migration<TState extends VersionedState> = MigrationTargetVersion & MigrationFunctions<TState>;
 
 export interface MigrationTargetVersion {
   readonly targetVersion: number;
 }
 
-export interface MigrationFunctions<TState> {
+export interface MigrationFunctions<TState extends VersionedState> {
   // key: versions the migrate function updates from
   // value: migrate function to transform a state to the next version
-  [key: number]: <TPrevState>(previousState: TPrevState | undefined) => States<TState>;
+  [key: number]: <TPrevState>(previousState: TPrevState | undefined) => TState;
 }
 
 export type LogLevel = 'error' | 'info' | 'debug';
@@ -96,20 +110,20 @@ export type LogLevel = 'error' | 'info' | 'debug';
 export type Log = Error | LogInfo | LogDebug;
 
 export interface LogBase {
-  level: LogLevel;
-  name: string;
-  message: string;
+  readonly level: LogLevel;
+  readonly name: string;
+  readonly message: string;
 }
 
 export interface Error extends LogBase {
-  level: 'error';
-  stack?: string;
+  readonly level: 'error';
+  readonly stack?: string;
 }
 
 export interface LogInfo extends LogBase {
-  level: 'info';
+  readonly level: 'info';
 }
 
 export interface LogDebug extends LogBase {
-  level: 'debug';
+  readonly level: 'debug';
 }

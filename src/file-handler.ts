@@ -1,16 +1,16 @@
 import { BehaviorSubject, Observable, of, Subject } from 'rxjs';
 import { concatMap, exhaustMap, filter, map, take, takeUntil } from 'rxjs/operators';
 import { createFilePath, fileExists, last, migrate, mustBeLogged, mustBeLoggedToConsole, readFile, writeFileAtomic } from './helpers';
-import { ActionReducer, Actions, Config, File, FileHandler, Log, States, VersionedState } from './model';
+import { Action, ActionReducer, Config, File, FileHandler, Log, TypedAction, VersionedState } from './model';
 
-export class FileHandlerImpl<TState, TActionType extends string> implements FileHandler<TState, TActionType> {
+export class FileHandlerImpl<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> implements FileHandler<TState, TActionType, TAction> {
   private config: Config<TState>;
-  private files: BehaviorSubject<File<TState, TActionType> | undefined>;
-  private destroy: Subject<void>;
+  private files: BehaviorSubject<File<TState, TActionType, TAction> | undefined>;
+  private readonly destroy: Subject<void>;
 
   constructor() {
     this.config = {};
-    this.files = new BehaviorSubject<File<TState, TActionType> | undefined>(undefined);
+    this.files = new BehaviorSubject<File<TState, TActionType, TAction> | undefined>(undefined);
     this.destroy = new Subject();
 
     this.files.pipe(
@@ -26,7 +26,7 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
     });
   }
 
-  public configure(config?: Config<TState>): Observable<States<TState> | undefined> {
+  public configure(config?: Config<TState>): Observable<TState | undefined> {
     this.config = config || this.config;
     this.log({ level: 'debug', name: 'file-handler ConfigChanged', message: JSON.stringify(this.config) });
     const fileObservable =
@@ -35,7 +35,7 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
           if (exists) {
             if (this.config.migration) {
               return readFile(createFilePath(this.config.fileName, this.config.path), 'utf8').pipe(
-                map(currentFileString => JSON.parse(currentFileString) as File<any, TActionType>),
+                map(currentFileString => JSON.parse(currentFileString) as File<any, TActionType, TAction>),
                 map(file => {
                   const lastState = last(file.states) as VersionedState;
                   const migratedState = migrate(lastState, this.config.migration);
@@ -43,7 +43,7 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
                   return {
                     ...file,
                     states: file && file.states ? [...file.states, ...migratedStateArr] : migratedStateArr,
-                  } as File<TState, TActionType>;
+                  } as File<TState, TActionType, TAction>;
                 }),
                 concatMap(file =>
                   writeFileAtomic(createFilePath(this.config.fileName, this.config.path), JSON.stringify(file), 'utf8').pipe(
@@ -53,7 +53,7 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
               );
             }
             return readFile(createFilePath(this.config.fileName, this.config.path), 'utf8').pipe(
-              map(currentFileString => JSON.parse(currentFileString) as File<TState, TActionType>),
+              map(currentFileString => JSON.parse(currentFileString) as File<TState, TActionType, TAction>),
             );
           }
           return of(undefined);
@@ -73,7 +73,7 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
     );
   }
 
-  public reduce(reducer: ActionReducer<TState, TActionType>) {
+  public reduce(reducer: ActionReducer<TState, TActionType, TAction>) {
     this.log({ level: 'debug', name: 'file-handler ReducerChanged', message: JSON.stringify(reducer) });
     this.files.pipe(
       take(1),
@@ -81,13 +81,13 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
       this.files.next({
         ...file,
         reducers: file && file.reducers ? [...file.reducers, reducer] : [reducer],
-      } as File<TState, TActionType>);
+      } as File<TState, TActionType, TAction>);
     }, error => {
       this.log({ level: 'error', message: error.message, name: `file-handler ReducerChanged: ${error.name}`, stack: error.stack });
     });
   }
 
-  public dispatch(action: Actions<TActionType>) {
+  public dispatch(action: TAction) {
     this.log({ level: 'debug', name: 'file-handler ActionDispatched', message: JSON.stringify(action) });
     this.files.pipe(
       take(1),
@@ -95,13 +95,13 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
       this.files.next({
         ...file,
         actions: file && file.actions ? [...file.actions, action] : [action],
-      } as File<TState, TActionType>);
+      } as File<TState, TActionType, TAction>);
     }, error => {
       this.log({ level: 'error', message: error.message, name: `file-handler ActionDispatched: ${error.name}`, stack: error.stack });
     });
   }
 
-  public changeState(state: States<TState> | undefined) {
+  public changeState(state: TState | undefined) {
     this.log({ level: 'debug', name: 'file-handler StateChanged', message: JSON.stringify(state) });
     this.files.pipe(
       take(1),
@@ -109,7 +109,7 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
       this.files.next({
         ...file,
         states: file && file.states ? [...file.states, state] : [state],
-      } as File<TState, TActionType>);
+      } as File<TState, TActionType, TAction>);
     }, error => {
       this.log({ level: 'error', message: error.message, name: `file-handler StateChanged: ${error.name}`, stack: error.stack });
     });
@@ -124,7 +124,7 @@ export class FileHandlerImpl<TState, TActionType extends string> implements File
         this.files.next({
           ...file,
           logs: file && file.logs ? [...file.logs, log] : [log],
-        } as File<TState, TActionType>);
+        } as File<TState, TActionType, TAction>);
       }
     }, error => {
       this.logToConsole({ level: 'error', message: error.message, name: `file-handler Log: ${error.name}`, stack: error.stack });

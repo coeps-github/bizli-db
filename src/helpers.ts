@@ -3,16 +3,50 @@ import { NoParamCallback, PathLike, WriteFileOptions } from 'fs';
 import * as fsPath from 'path';
 import { bindNodeCallback, Observable, of } from 'rxjs';
 import { catchError, concatMap, map } from 'rxjs/operators';
-import { ActionReducer, ActionReducerMap, Actions, Config, LogLevel, Migration, States, VersionedState } from './model';
+import {
+  Action,
+  ActionReducer,
+  ActionReducerMap,
+  Config,
+  LogLevel,
+  Migration,
+  On,
+  OnSubState,
+  SubStateActionReducer,
+  TypedAction,
+  VersionedState,
+} from './model';
 
-export function combineReducers<TState, TActionType extends string>(
-  actionReducerMap: ActionReducerMap<TState, TActionType>,
-): ActionReducer<TState, TActionType> {
-  return (state: States<TState> | undefined, action: Actions<TActionType>) => {
-    return Object.keys(actionReducerMap).reduce((nextState, key) => {
+export function createReducer<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>, TAsAction extends Action | TypedAction<TActionType>>
+(initialState: TSubState, ...ons: Array<OnSubState<TSubState, TActionType, TAction>>): SubStateActionReducer<TSubState, TActionType, TAsAction>;
+export function createReducer<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>, TAsAction extends Action | TypedAction<TActionType>>
+(initialState: TState, ...ons: Array<On<TState, TActionType, TAction>>): ActionReducer<TState, TActionType, TAsAction> {
+  return (state: TState | undefined = initialState, action: TAction | TAsAction) => {
+    return ons.filter(o => o.types.includes(action.type as TActionType)).reduce((nextState, o) => {
+      return o.reducer(nextState, action as TAction);
+    }, { ...state, version: state?.version || initialState.version } as TState);
+  };
+}
+
+
+export function on<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>>
+(reducer: SubStateActionReducer<TSubState, TActionType, TAction>, ...types: TActionType[]): OnSubState<TSubState, TActionType, TAction>
+export function on<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>>
+(reducer: ActionReducer<TState, TActionType, TAction>, ...types: TActionType[]): On<TState, TActionType, TAction> {
+  return {
+    reducer,
+    types,
+  };
+}
+
+export function combineReducers<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>>(
+  actionReducerMap: ActionReducerMap<TState, TActionType, TAction>,
+): ActionReducer<TState, TActionType, TAction> {
+  return (state: TState | undefined, action: TAction) => {
+    return Object.keys(actionReducerMap).filter(key => key !== 'version').reduce((nextState, key) => {
       (nextState as any)[key] = (actionReducerMap as any)[key]((state || {} as any)[key], action);
       return nextState;
-    }, { ...state } as States<TState>);
+    }, { ...state, version: state?.version || actionReducerMap.version } as TState);
   };
 }
 
@@ -71,7 +105,7 @@ export function createTempFilePath(filePath: string): string {
   return fsPath.join(fsPath.resolve(fsPath.dirname(filePath)), `${fsPath.basename(filePath, extension)}.temp${extension}`);
 }
 
-export function mustBeLogged<TState>(logLevel: LogLevel, config: Config<TState>): boolean {
+export function mustBeLogged<TState extends VersionedState>(logLevel: LogLevel, config: Config<TState>): boolean {
   const minimumLogLevel = config.logLevel || 'info';
   switch (minimumLogLevel) {
     case 'error':
@@ -83,7 +117,7 @@ export function mustBeLogged<TState>(logLevel: LogLevel, config: Config<TState>)
   }
 }
 
-export function mustBeLoggedToConsole<TState>(logLevel: LogLevel, config: Config<TState>): boolean {
+export function mustBeLoggedToConsole<TState extends VersionedState>(logLevel: LogLevel, config: Config<TState>): boolean {
   const logToConsole = config.logToConsole || false;
   return logToConsole && mustBeLogged(logLevel, config);
 }
@@ -92,7 +126,7 @@ export function last<T>(array?: T[]): T | undefined {
   return array && array.length > 0 ? array[array.length - 1] : undefined;
 }
 
-export function migrate<TState>(oldState: VersionedState, migration: Migration<TState> = { targetVersion: oldState.version }): States<TState> {
+export function migrate<TState extends VersionedState>(oldState: VersionedState, migration: Migration<TState> = { targetVersion: oldState.version }): TState {
   const resultState = Object.keys(migration)
     .filter(key => key !== 'version')
     .map(x => +x)
@@ -108,7 +142,7 @@ export function migrate<TState>(oldState: VersionedState, migration: Migration<T
         };
       }
       return state;
-    }, oldState) as States<TState>;
+    }, oldState) as TState;
   if (migration.targetVersion !== resultState.version) {
     throw new Error(`Migration Error: Mismatch of expected ${migration.targetVersion} vs actual ${resultState.version} target version of migrated state!
     Please make sure to set the new version of the state in the migration functions properly and provide a function for each version jump.`);

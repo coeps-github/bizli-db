@@ -1,9 +1,10 @@
 import { of } from 'rxjs';
 import { skip, take } from 'rxjs/operators';
 import { BizliDbImpl } from '../bizli-db';
-import { Action, ActionReducerMap, Actions, FileHandler } from '../model';
+import { Action, ActionReducerMap, FileHandler, TypedAction, VersionedState } from '../model';
 
-interface State {
+interface State extends VersionedState {
+  version: number;
   subState1: SubState1,
   subState2: SubState2,
   subState3: SubState3,
@@ -26,7 +27,7 @@ interface SubState4 {
   value4: string
 }
 
-const reducer1 = (state = {} as SubState1, action: Actions<'test'>) => {
+const reducer1 = (state = {} as SubState1, action: TypedAction<'test'>) => {
   switch (action.type) {
     case 'test': {
       return {
@@ -37,7 +38,7 @@ const reducer1 = (state = {} as SubState1, action: Actions<'test'>) => {
   }
   return state;
 };
-const reducer2 = (state: any, action: Actions<'test'>) => {
+const reducer2 = (state: any, action: TypedAction<'test'>) => {
   switch (action.type) {
     case 'test': {
       return {
@@ -48,7 +49,7 @@ const reducer2 = (state: any, action: Actions<'test'>) => {
   }
   return state;
 };
-const reducer3 = (state: any, action: Actions<'test'>) => {
+const reducer3 = (state: any, action: TypedAction<'test'>) => {
   switch (action.type) {
     case 'test': {
       return {
@@ -59,7 +60,7 @@ const reducer3 = (state: any, action: Actions<'test'>) => {
   }
   return state;
 };
-const reducer4 = (state = {} as SubState4, action: Actions<'test'>) => {
+const reducer4 = (state = {} as SubState4, action: TypedAction<'test'>) => {
   switch (action.type) {
     case 'test': {
       return {
@@ -70,14 +71,14 @@ const reducer4 = (state = {} as SubState4, action: Actions<'test'>) => {
   }
   return state;
 };
-const reducerMap1: ActionReducerMap<State, 'test'> = {
+const reducerMap1: ActionReducerMap<State, 'test', TypedAction<'test'>> = {
   subState1: reducer1,
   subState2: reducer2,
-} as ActionReducerMap<State, 'test'>;
-const reducerMap2: ActionReducerMap<State, 'test'> = {
+} as ActionReducerMap<State, 'test', TypedAction<'test'>>;
+const reducerMap2: ActionReducerMap<State, 'test', TypedAction<'test'>> = {
   subState3: reducer3,
   subState4: reducer4,
-} as ActionReducerMap<State, 'test'>;
+} as ActionReducerMap<State, 'test', TypedAction<'test'>>;
 const expectedState1: State = {
   subState1: {
     value1: 'test1',
@@ -100,7 +101,7 @@ const expectedSubState1: SubState1 = {
 const expectedSubState2: SubState2 = {
   value2: 'test2',
 };
-const FileHandlerMock = jest.fn<FileHandler<any, any>, any>((state?: any) => ({
+const FileHandlerMock = jest.fn<FileHandler<any, any, any>, any>((state?: any) => ({
   changeState: jest.fn(),
   configure: jest.fn(() => of(state)),
   dispatch: jest.fn(),
@@ -132,7 +133,7 @@ describe('bizli-db', () => {
       const mock = new FileHandlerMock();
       const bizliDb = new BizliDbImpl(mock);
       bizliDb.configure();
-      bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
+      bizliDb.select().pipe(take(1)).subscribe(state => {
         done.fail();
       });
       setTimeout(done, 1000);
@@ -143,7 +144,7 @@ describe('bizli-db', () => {
       const mock = new FileHandlerMock(expectedState);
       const bizliDb = new BizliDbImpl(mock);
       bizliDb.configure();
-      bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
+      bizliDb.select().pipe(take(1)).subscribe(state => {
         expect(state).toEqual(state);
         done();
       });
@@ -169,7 +170,7 @@ describe('bizli-db', () => {
       const bizliDb = BizliDb();
       bizliDb.reduce((state = { value: 'hoi' }) => state);
       bizliDb.dispatch({ type: 'bla' });
-      bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
+      bizliDb.select().pipe(take(1)).subscribe(state => {
         expect(state).toEqual({ value: 'hoi' });
         done();
       });
@@ -180,7 +181,7 @@ describe('bizli-db', () => {
       bizliDb.reduce((state = { value: 'hoi' }) => state);
       bizliDb.dispatch({ type: 'bla' });
       bizliDb.reduce((state = { value: 'du' }) => state);
-      bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
+      bizliDb.select().pipe(take(1)).subscribe(state => {
         expect(state).toEqual({ value: 'hoi' });
         done();
       });
@@ -192,7 +193,7 @@ describe('bizli-db', () => {
       bizliDb.dispatch({ type: 'bla' });
       bizliDb.reduce((state = { value: 'du' }) => state);
       bizliDb.dispatch({ type: 'bla' });
-      bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
+      bizliDb.select().pipe(take(1)).subscribe(state => {
         expect(state).toEqual({ value: 'hoi' });
         done();
       });
@@ -202,7 +203,7 @@ describe('bizli-db', () => {
       const bizliDb = BizliDb();
       bizliDb.reduce(reducer1);
       bizliDb.dispatch({ type: 'test' });
-      bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
+      bizliDb.select().pipe(take(1)).subscribe(state => {
         expect(state).toEqual(expectedSubState1);
         done();
       });
@@ -213,7 +214,7 @@ describe('bizli-db', () => {
       bizliDb.reduce(reducer1);
       bizliDb.dispatch({ type: 'test' });
       bizliDb.reduce(reducer2);
-      bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
+      bizliDb.select().pipe(take(1)).subscribe(state => {
         expect(state).toEqual(expectedSubState1);
         done();
       });
@@ -225,7 +226,7 @@ describe('bizli-db', () => {
       bizliDb.dispatch({ type: 'test' });
       bizliDb.reduce(reducer2);
       bizliDb.dispatch({ type: 'test' });
-      bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
+      bizliDb.select().pipe(take(1)).subscribe(state => {
         expect(state).toEqual({ ...expectedSubState1, ...expectedSubState2 });
         done();
       });
@@ -235,7 +236,7 @@ describe('bizli-db', () => {
       const bizliDb = BizliDb();
       bizliDb.reduce(reducerMap1);
       bizliDb.dispatch({ type: 'bla' });
-      bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
+      bizliDb.select().pipe(take(1)).subscribe(state => {
         expect(state).toEqual({
           subState1: {},
           subState2: undefined,
@@ -249,7 +250,7 @@ describe('bizli-db', () => {
       bizliDb.reduce(reducerMap1);
       bizliDb.dispatch({ type: 'bla' });
       bizliDb.reduce(reducerMap2);
-      bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
+      bizliDb.select().pipe(take(1)).subscribe(state => {
         expect(state).toEqual({
           subState1: {},
           subState2: undefined,
@@ -264,7 +265,7 @@ describe('bizli-db', () => {
       bizliDb.dispatch({ type: 'bla' });
       bizliDb.reduce(reducerMap2);
       bizliDb.dispatch({ type: 'bla' });
-      bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
+      bizliDb.select().pipe(take(1)).subscribe(state => {
         expect(state).toEqual({
           subState1: {},
           subState2: undefined,
@@ -279,7 +280,7 @@ describe('bizli-db', () => {
       const bizliDb = BizliDb();
       bizliDb.reduce(reducerMap1);
       bizliDb.dispatch({ type: 'test' });
-      bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
+      bizliDb.select().pipe(take(1)).subscribe(state => {
         expect(state).toEqual(expectedState1);
         done();
       });
@@ -290,7 +291,7 @@ describe('bizli-db', () => {
       bizliDb.reduce(reducerMap1);
       bizliDb.dispatch({ type: 'test' });
       bizliDb.reduce(reducerMap2);
-      bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
+      bizliDb.select().pipe(take(1)).subscribe(state => {
         expect(state).toEqual(expectedState1);
         done();
       });
@@ -302,14 +303,14 @@ describe('bizli-db', () => {
       bizliDb.dispatch({ type: 'test' });
       bizliDb.reduce(reducerMap2);
       bizliDb.dispatch({ type: 'test' });
-      bizliDb.selectRoot().pipe(take(1)).subscribe(state => {
+      bizliDb.select().pipe(take(1)).subscribe(state => {
         expect(state).toEqual({ ...expectedState1, ...expectedState2 });
         done();
       });
     });
   });
 
-  describe('select', () => {
+  describe('select (sub state)', () => {
     test('should get sub state updates no matter where in state the change happened, when no compare is used', done => {
       const bizliDb = BizliDb();
       const reducer = (state = { subState: { test: '' }, changeState: '' }) => ({ subState: { test: '' }, changeState: 'hallo' });
@@ -336,7 +337,7 @@ describe('bizli-db', () => {
       const comperator = (a: { test: string }, b: { test: string }) => a.test === b.test;
       let resultCount = 2;
       bizliDb.reduce(reducer);
-      bizliDb.selectRoot().pipe(skip(3), take(1)).subscribe(state => {
+      bizliDb.select().pipe(skip(3), take(1)).subscribe(state => {
         expect(state).toEqual({ subState: { test: '' }, changeState: 'test' });
         bizliDb.dispatch({ type: 'hallo' });
       });
@@ -360,7 +361,7 @@ describe('bizli-db', () => {
       const selector = (state: { subState: { test: string } | undefined, changeState: string }) => state.subState;
       const comperator = (a: { test: string } | undefined, b: { test: string } | undefined) => (a && a.test) === (b && b.test);
       bizliDb.reduce(reducer);
-      bizliDb.selectRoot().pipe(skip(3), take(1)).subscribe(state => {
+      bizliDb.select().pipe(skip(3), take(1)).subscribe(state => {
         expect(state).toEqual({ subState: undefined, changeState: 'test' });
         bizliDb.dispatch({ type: 'hallo' });
       });
@@ -375,13 +376,13 @@ describe('bizli-db', () => {
     });
   });
 
-  describe('selectRoot', () => {
+  describe('select (root)', () => {
     test('should get state updates no matter where in state the change happened, when no compare is used', done => {
       const bizliDb = BizliDb();
       const reducer = (state = { subState: { test: '' }, changeState: '' }) => ({ subState: { test: '' }, changeState: 'hallo' });
       let resultCount = 3;
       bizliDb.reduce(reducer);
-      bizliDb.selectRoot().pipe(take(resultCount)).subscribe(subState => {
+      bizliDb.select().pipe(take(resultCount)).subscribe(subState => {
         if (--resultCount === 0) {
           expect(subState).toEqual({ subState: { test: '' }, changeState: 'hallo' });
           done();
@@ -400,11 +401,11 @@ describe('bizli-db', () => {
       const comperator = (a: { subState: { test: string }, changeState: string }, b: { subState: { test: string }, changeState: string }) => a.subState.test === b.subState.test;
       let resultCount = 2;
       bizliDb.reduce(reducer);
-      bizliDb.selectRoot().pipe(skip(3), take(1)).subscribe(state => {
+      bizliDb.select().pipe(skip(3), take(1)).subscribe(state => {
         expect(state).toEqual({ subState: { test: '' }, changeState: 'test' });
         bizliDb.dispatch({ type: 'hallo' });
       });
-      bizliDb.selectRoot(comperator).pipe(take(resultCount)).subscribe(subState => {
+      bizliDb.select(undefined, comperator).pipe(take(resultCount)).subscribe(subState => {
         if (--resultCount === 0) {
           expect(subState).toEqual({ subState: { test: 'hallo' }, changeState: 'test' });
           done();

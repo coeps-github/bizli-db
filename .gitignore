@@ -5,4 +5,4 @@ node_modules
 .idea
 
 temp
-db.json
+db*.json

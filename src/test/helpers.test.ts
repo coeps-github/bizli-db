@@ -14,32 +14,61 @@ import {
   writeFile,
   writeFileAtomic,
 } from '../helpers';
+import { TypedAction, VersionedState } from '../model';
 
 describe('helpers', () => {
 
+  // TODO: createReducer (sub state)
+  // TODO: createReducer (root)
+  // TODO: on (sub state)
+  // TODO: on (root)
+
   describe('combineReducers', () => {
+    interface State extends VersionedState {
+      readonly test1: string;
+      readonly test2: string;
+    }
+
     test('should combine reducers into a reducer function', () => {
-      const combinedReducer = combineReducers({
+      const combinedReducer = combineReducers<State, 'test', TypedAction<'test'>>({
+        version: 1,
         test1: (state: any) => state,
         test2: (state: any) => state,
       });
       expect(typeof combinedReducer).toBe('function');
       expect(combinedReducer(undefined, { type: 'test' })).toEqual({
+        version: 1,
         test1: undefined,
         test2: undefined,
       });
     });
 
     test('should combine reducers into a reducer function, which extends the given initial state', () => {
-      const combinedReducer = combineReducers({
+      const combinedReducer = combineReducers<State, 'test', TypedAction<'test'>>({
+        version: 1,
         test1: (state: any) => state,
         test2: (state: any) => state,
       });
       expect(typeof combinedReducer).toBe('function');
       expect(combinedReducer({ test3: 'test' } as any, { type: 'test' })).toEqual({
+        version: 1,
         test1: undefined,
         test2: undefined,
         test3: 'test',
+      });
+    });
+
+    test('should combine reducers into a reducer function, which uses the version of the given initial state over the action reducer map one', () => {
+      const combinedReducer = combineReducers<State, 'test', TypedAction<'test'>>({
+        version: 1,
+        test1: (state: any) => state,
+        test2: (state: any) => state,
+      });
+      expect(typeof combinedReducer).toBe('function');
+      expect(combinedReducer({ version: 10 } as any, { type: 'test' })).toEqual({
+        version: 10,
+        test1: undefined,
+        test2: undefined,
       });
     });
   });
