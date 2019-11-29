@@ -1,10 +1,13 @@
 # bizli-db
 
 simple and small in memory database with json file persistence.
+
 based on redux/ngrx principles:
 - state
 - actions
 - reducers
+
+because of the persistence, the store is versioned and can be migrated.
 
 ## install
 
@@ -14,10 +17,11 @@ npm install @coeps/bizli-db --save
 
 ```typescript
 
-import { take } from 'rxjs/operators';
+import { take, skip } from 'rxjs/operators';
 import {
   ActionReducerMap,
   bizliDbFactory,
+  Config,
   createReducer,
   on,
   TypedAction
@@ -60,7 +64,11 @@ interface PetState {
   readonly species: string;
 }
 
-const config = {};
+// TODO: add config
+const config: Config<State> = {
+  logLevel: 'debug',
+  logToConsole: true,
+};
 
 const initialPersonState = {
   firstName: 'Fritzli',
@@ -107,6 +115,17 @@ bizliDb.select(state => state?.person, (a, b) => a?.lastName === b?.lastName)
     // TODO: do stuff
   });
 
+bizliDb.select(state => state?.pet, (a, b) => a?.name === b?.name)
+  .pipe(skip(1))
+  .subscribe(pet => {
+    // TODO: do stuff
+  });
+
 bizliDb.dispatch({ type: 'ChangePersonNameAction', firstName: 'Franz', lastName: 'Hugentobler' });
+bizliDb.dispatch({ type: 'ChangePetNameAction', name: 'Müüsli' });
 
 ```
+
+## migration
+
+

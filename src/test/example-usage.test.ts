@@ -1,7 +1,7 @@
-import { take } from 'rxjs/operators';
+import { skip, take } from 'rxjs/operators';
 import { bizliDbFactory } from '../bizli-db-factory';
 import { createReducer, on } from '../helpers';
-import { ActionReducerMap, TypedAction } from '../model';
+import { ActionReducerMap, Config, TypedAction } from '../model';
 
 describe('example-usage', () => {
 
@@ -44,7 +44,10 @@ describe('example-usage', () => {
       readonly species: string;
     }
 
-    const config = {};
+    const config: Config<State> = {
+      logLevel: 'debug',
+      logToConsole: true,
+    };
 
     const initialPersonState = {
       firstName: 'Fritzli',
@@ -90,11 +93,17 @@ describe('example-usage', () => {
       .subscribe(person => {
         expect(person.firstName).toBe('Franz');
         expect(person.lastName).toBe('Hugentobler');
-        done();
+      });
+
+    bizliDb.select(state => state?.pet, (a, b) => a?.name === b?.name)
+      .pipe(skip(1))
+      .subscribe(pet => {
+        expect(pet.name).toBe('Müüsli');
       });
 
     bizliDb.dispatch({ type: 'ChangePersonNameAction', firstName: 'Franz', lastName: 'Hugentobler' });
+    bizliDb.dispatch({ type: 'ChangePetNameAction', name: 'Müüsli' });
 
-  });
+  }, 99999999);
 
 });

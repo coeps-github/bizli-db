@@ -418,13 +418,13 @@ describe('bizli-db', () => {
     });
   });
 
-  describe('observe', () => {
+  describe('effect', () => {
     test('should receive observed actions only', done => {
       const bizliDb = BizliDb();
       const actionTypes = ['test', 'test2'];
       let resultCount = 2;
-      bizliDb.observe(actionTypes).pipe(take(resultCount)).subscribe(action => {
-        expect(actionTypes.includes(action.type)).toBeTruthy();
+      bizliDb.effect(actionTypes).pipe(take(resultCount)).subscribe(effect => {
+        expect(actionTypes.includes(effect.action.type)).toBeTruthy();
         if (--resultCount === 0) {
           done();
         }

@@ -16,7 +16,7 @@ export interface BizliDb<TState extends VersionedState, TActionType extends stri
 
   select(select?: Select<TState, TState>, compare?: Compare<TState>): Observable<TState>;
 
-  observe(actions: Array<string | TActionType>): Observable<TAction>;
+  effect(actions: Array<string | TActionType>): Observable<Effect<TState, TActionType, TAction>>;
 
   dispose(): void;
 }
@@ -92,6 +92,11 @@ export type ActionReducerMap<TState extends VersionedState, TActionType extends 
 
 export type SubStateActionReducer<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> =
   (state: TSubState | undefined, action: TAction) => TSubState;
+
+export interface Effect<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
+  state: TState,
+  action: TAction,
+}
 
 export type Migration<TState extends VersionedState> = MigrationTargetVersion & MigrationFunctions<TState>;
 
