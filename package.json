@@ -13,6 +13,8 @@
     "test": "jest --config jestconfig.json",
     "build": "tsc",
     "start": "jest --config jestconfig.json --watch",
+    "debug": "node --inspect-brk node_modules/.bin/jest --runInBand --config jestconfig.debug.json --watch",
+    "debug-win": "node --inspect-brk ./node_modules/jest/bin/jest.js --runInBand --config jestconfig.debug.json --watch",
     "pipeline": "npm run format && npm run lint && npm run test && npm run build"
   },
   "repository": {

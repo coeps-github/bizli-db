@@ -117,5 +117,6 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
   public dispose() {
     this.destroy.next();
     this.destroy.complete();
+    this.fileHandler.dispose();
   }
 }
