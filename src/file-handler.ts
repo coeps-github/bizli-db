@@ -1,18 +1,18 @@
-import { BehaviorSubject, Observable, of, ReplaySubject, Subject } from 'rxjs';
+import { AsyncSubject, BehaviorSubject, Observable, of, Subject } from 'rxjs';
 import { concatMap, filter, map, take, takeUntil, throttleTime } from 'rxjs/operators';
 import { createFilePath, fileExists, last, migrate, mustBeLogged, mustBeLoggedToConsole, readFile, writeFileAtomic } from './helpers';
-import { Action, ActionReducer, Config, File, FileHandler, Log, TypedAction, VersionedState } from './model';
+import { Action, Config, File, FileHandler, Log, TypedAction, VersionedState } from './model';
 
 export class FileHandlerImpl<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> implements FileHandler<TState, TActionType, TAction> {
   private config: Config<TState>;
   private files: BehaviorSubject<File<TState, TActionType, TAction> | undefined>;
-  private fileLoadLatch: ReplaySubject<void>;
+  private fileLoadLatch: AsyncSubject<void>;
   private readonly destroy: Subject<void>;
 
   constructor() {
     this.config = {};
     this.files = new BehaviorSubject<File<TState, TActionType, TAction> | undefined>(undefined);
-    this.fileLoadLatch = new ReplaySubject(1);
+    this.fileLoadLatch = new AsyncSubject();
     this.destroy = new Subject();
 
     this.files.pipe(
@@ -34,8 +34,23 @@ export class FileHandlerImpl<TState extends VersionedState, TActionType extends 
 
   public configure(config?: Config<TState>): Observable<TState | undefined> {
     this.config = config || this.config;
-    this.fileLoadLatch = new ReplaySubject(1);
-    this.log({ level: 'debug', name: 'file-handler ConfigChanged', message: JSON.stringify(this.config) });
+    this.fileLoadLatch = new AsyncSubject();
+    this.fileLoadLatch.pipe(
+      take(1),
+      concatMap(() =>
+        this.files.pipe(
+          take(1),
+        ),
+      ),
+    ).subscribe(file => {
+      this.log({ level: 'debug', name: 'file-handler ConfigChanged', message: JSON.stringify(this.config) });
+      this.files.next({
+        ...file,
+        configs: file && file.configs ? [...file.configs, this.config] : [this.config],
+      } as File<TState, TActionType, TAction>);
+    }, error => {
+      this.log({ level: 'error', message: error.message, name: `file-handler ConfigChanged: ${error.name}`, stack: error.stack });
+    });
     const fileObservable =
       fileExists(createFilePath(this.config.fileName, this.config.path)).pipe(
         concatMap(exists => {
@@ -84,7 +99,7 @@ export class FileHandlerImpl<TState extends VersionedState, TActionType extends 
     );
   }
 
-  public reduce(reducer: ActionReducer<TState, TActionType, TAction>) {
+  public reduce(reducer: string) {
     this.fileLoadLatch.pipe(
       take(1),
       concatMap(() =>

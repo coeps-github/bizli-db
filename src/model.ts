@@ -38,7 +38,7 @@ export interface Config<TState extends VersionedState> {
 export interface FileHandler<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
   configure(config?: Config<TState>): Observable<TState | undefined>;
 
-  reduce(reducer: ActionReducer<TState, TActionType, TAction>): void;
+  reduce(reducer: string): void;
 
   dispatch(action: TAction): void;
 
@@ -51,7 +51,7 @@ export interface FileHandler<TState extends VersionedState, TActionType extends 
 
 export interface File<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
   readonly configs: Array<Config<TState>>;
-  readonly reducers: Array<ActionReducer<TState, TActionType, TAction>>;
+  readonly reducers: string[];
   readonly actions: TAction[];
   readonly states: TState[];
   readonly logs: Log[];
@@ -74,13 +74,13 @@ export interface TypedAction<TActionType extends string> extends Action {
 }
 
 export interface On<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
-  reducer: ActionReducer<TState, TActionType, TAction>,
-  types: TActionType[]
+  readonly reducer: ActionReducer<TState, TActionType, TAction>,
+  readonly types: TActionType[]
 }
 
 export interface OnSubState<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
-  reducer: SubStateActionReducer<TSubState, TActionType, TAction>,
-  types: TActionType[]
+  readonly reducer: SubStateActionReducer<TSubState, TActionType, TAction>,
+  readonly types: TActionType[]
 }
 
 export type ActionReducer<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> =
@@ -92,6 +92,16 @@ export type ActionReducerMap<TState extends VersionedState, TActionType extends 
 
 export type SubStateActionReducer<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> =
   (state: TSubState | undefined, action: TAction) => TSubState;
+
+export interface ActionReducerMetadata<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
+  readonly initialState: TState;
+  readonly ons: Array<On<TState, TActionType, TAction>>
+}
+
+export interface SubStateActionReducerMetadata<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
+  readonly initialState: TSubState;
+  readonly ons: Array<OnSubState<TSubState, TActionType, TAction>>
+}
 
 export interface Effect<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
   state: TState,
