@@ -3,36 +3,17 @@ import { NoParamCallback, PathLike, WriteFileOptions } from 'fs';
 import * as fsPath from 'path';
 import { bindNodeCallback, Observable, of } from 'rxjs';
 import { catchError, concatMap, map } from 'rxjs/operators';
-import {
-  Action,
-  ActionReducer,
-  ActionReducerMap,
-  ActionReducerMetadata,
-  Config,
-  LogLevel,
-  Migration,
-  On,
-  OnSubState,
-  SubStateActionReducer,
-  SubStateActionReducerMetadata,
-  TypedAction,
-  VersionedState,
-} from './model';
+import { Action, ActionReducer, ActionReducerMap, Migration, On, OnSubState, SubStateActionReducer, TypedAction, VersionedState } from './model';
 
 export function createReducer<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>, TAsAction extends Action | TypedAction<TActionType>>
 (initialState: TSubState, ...ons: Array<OnSubState<TSubState, TActionType, TAction>>): SubStateActionReducer<TSubState, TActionType, TAsAction>;
 export function createReducer<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>, TAsAction extends Action | TypedAction<TActionType>>
 (initialState: TState, ...ons: Array<On<TState, TActionType, TAction>>): ActionReducer<TState, TActionType, TAsAction> {
-  const reducerFn = (state: TState | undefined = initialState, action: TAction | TAsAction) => {
+  return (state: TState | undefined = initialState, action: TAction | TAsAction) => {
     return ons.filter(o => o.types.includes(action.type as TActionType)).reduce((nextState, o) => {
       return o.reducer(nextState, action as TAction);
     }, { ...state, version: state?.version || initialState.version } as TState);
   };
-  reducerFn.prototype.metadata = {
-    initialState,
-    ons,
-  };
-  return reducerFn;
 }
 
 
@@ -112,23 +93,6 @@ export function createTempFilePath(filePath: string): string {
   return fsPath.join(fsPath.resolve(fsPath.dirname(filePath)), `${fsPath.basename(filePath, extension)}.temp${extension}`);
 }
 
-export function mustBeLogged<TState extends VersionedState>(logLevel: LogLevel, config: Config<TState>): boolean {
-  const minimumLogLevel = config.logLevel || 'info';
-  switch (minimumLogLevel) {
-    case 'error':
-      return logLevel === 'error';
-    case 'debug':
-      return logLevel === 'error' || logLevel === 'info' || logLevel === 'debug';
-    default:
-      return logLevel === 'error' || logLevel === 'info';
-  }
-}
-
-export function mustBeLoggedToConsole<TState extends VersionedState>(logLevel: LogLevel, config: Config<TState>): boolean {
-  const logToConsole = config.logToConsole || false;
-  return logToConsole && mustBeLogged(logLevel, config);
-}
-
 export function last<T>(array?: T[]): T | undefined {
   return array && array.length > 0 ? array[array.length - 1] : undefined;
 }
@@ -155,46 +119,4 @@ export function migrate<TState extends VersionedState>(oldState: VersionedState,
     Please make sure to set the new version of the state in the migration functions properly and provide a function for each version jump.`);
   }
   return resultState;
-}
-
-export function stringifyReducerMap<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>>(
-  actionReducerMap: ActionReducerMap<TState, TActionType, TAction>,
-): string {
-  return Object.keys(actionReducerMap).filter(key => key !== 'version').reduce((str, key) => {
-    return `${str}\n${key}:\n${stringifySubStateReducer((actionReducerMap as any)[key])}`;
-  }, '');
-}
-
-export function stringifyReducer<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>>(
-  actionReducer: ActionReducer<TState, TActionType, TAction>,
-): string {
-  if (actionReducer.prototype.metadata) {
-    const metadata = actionReducer.prototype.metadata as ActionReducerMetadata<TState, TActionType, TAction>;
-    const jsonMetadata = {
-      initialState: metadata.initialState,
-      ons: metadata.ons.map(o => ({
-        reducer: o.reducer.toString(),
-        types: o.types,
-      })),
-    };
-    return JSON.stringify(jsonMetadata);
-  }
-  return actionReducer.toString();
-}
-
-export function stringifySubStateReducer<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>>(
-  subStateActionReducer: SubStateActionReducer<TSubState, TActionType, TAction>,
-): string {
-  if (subStateActionReducer.prototype.metadata) {
-    const metadata = subStateActionReducer.prototype.metadata as SubStateActionReducerMetadata<TSubState, TActionType, TAction>;
-    const jsonMetadata = {
-      initialState: metadata.initialState,
-      ons: metadata.ons.map(o => ({
-        reducer: o.reducer.toString(),
-        types: o.types,
-      })),
-    };
-    return JSON.stringify(jsonMetadata);
-  }
-  return subStateActionReducer.toString();
 }

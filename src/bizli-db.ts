@@ -1,9 +1,23 @@
 import { AsyncSubject, BehaviorSubject, Observable, Subject } from 'rxjs';
 import { concatMap, distinctUntilChanged, filter, map, take, takeUntil } from 'rxjs/operators';
-import { combineReducers, stringifyReducer, stringifyReducerMap } from './helpers';
-import { Action, ActionReducer, ActionReducerMap, BizliDb, Compare, Config, Effect, FileHandler, Select, TypedAction, VersionedState } from './model';
+import { combineReducers } from './helpers';
+import {
+  Action,
+  ActionReducer,
+  ActionReducerMap,
+  BizliDb,
+  BizliDbConfig,
+  Compare,
+  Effect,
+  FileHandler,
+  Logger,
+  Select,
+  TypedAction,
+  VersionedState,
+} from './model';
 
 export class BizliDbImpl<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> implements BizliDb<TState, TActionType, TAction> {
+  private config: BizliDbConfig;
   private reducer: ActionReducer<TState, TActionType, TAction>;
   private actions: BehaviorSubject<TAction | undefined>;
   private states: BehaviorSubject<TState | undefined>;
@@ -11,7 +25,8 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
   private fileLoadLatch: AsyncSubject<void>;
   private readonly destroy: Subject<void>;
 
-  constructor(private fileHandler: FileHandler<TState, TActionType, TAction>) {
+  constructor(private fileHandler: FileHandler<TState, TActionType, TAction>, private logger: Logger) {
+    this.config = {};
     this.reducer = (state: any) => state;
     this.actions = new BehaviorSubject<TAction | undefined>(undefined);
     this.states = new BehaviorSubject<TState | undefined>(undefined);
@@ -23,38 +38,40 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
     this.fileLoadLatch.complete();
   }
 
-  public configure(config?: Config<TState>) {
+  configure(config?: BizliDbConfig) {
+    this.logger.log({ level: 'debug', name: 'bizli-db ConfigChanged', message: JSON.stringify(config) });
+    this.config = config || this.config;
+  }
+
+  loadState() {
     this.fileLoadLatch = new AsyncSubject();
-    this.fileHandler.log({ level: 'debug', name: 'bizli-db ConfigChanged', message: JSON.stringify(config) });
-    this.fileHandler.configure(config).subscribe(state => {
-      this.fileHandler.log({ level: 'debug', name: 'bizli-db StateLoaded', message: JSON.stringify(state) });
+    this.fileHandler.loadState().subscribe(state => {
+      this.logger.log({ level: 'debug', name: 'bizli-db StateLoaded', message: JSON.stringify(state) });
       if (state) {
-        this.fileHandler.log({ level: 'debug', name: 'bizli-db StateChanged (configure)', message: JSON.stringify(state) });
+        this.logger.log({ level: 'debug', name: 'bizli-db StateChanged (loadState)', message: JSON.stringify(state) });
         this.states.next(state);
       }
       this.fileLoadLatch.next();
       this.fileLoadLatch.complete();
     }, error => {
-      this.fileHandler.log({ level: 'error', name: `bizli-db StateLoaded: ${error.name}`, message: error.message, stack: error.stack });
+      this.logger.log({ level: 'error', name: `bizli-db StateLoaded: ${error.name}`, message: error.message, stack: error.stack });
       this.fileLoadLatch.next();
       this.fileLoadLatch.complete();
     });
   }
 
-  public reduce(reducer: ActionReducer<TState, TActionType, TAction> | ActionReducerMap<TState, TActionType, TAction>) {
+  reduce(reducer: ActionReducer<TState, TActionType, TAction> | ActionReducerMap<TState, TActionType, TAction>) {
     this.fileLoadLatch.pipe(
       take(1),
     ).subscribe(() => {
-      const reducerString = typeof reducer === 'function' ? stringifyReducer(reducer) : stringifyReducerMap(reducer);
       this.reducer = typeof reducer === 'function' ? reducer : combineReducers(reducer);
-      this.fileHandler.log({ level: 'debug', name: 'bizli-db ReducerChanged', message: JSON.stringify(reducerString) });
-      this.fileHandler.reduce(reducerString);
+      this.logger.log({ level: 'debug', name: 'bizli-db ReducerChanged', message: '...' });
     }, error => {
-      this.fileHandler.log({ level: 'error', name: `bizli-db ReducerChanged: ${error.name}`, message: error.message, stack: error.stack });
+      this.logger.log({ level: 'error', name: `bizli-db ReducerChanged: ${error.name}`, message: error.message, stack: error.stack });
     });
   }
 
-  public dispatch(action: TAction) {
+  dispatch(action: TAction) {
     this.fileLoadLatch.pipe(
       take(1),
       concatMap(() =>
@@ -65,23 +82,22 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
     ).subscribe(state => {
       const newState = this.reducer(state, action);
 
-      this.fileHandler.log({ level: 'debug', name: 'bizli-db ActionDispatched', message: JSON.stringify(action) });
-      this.fileHandler.log({ level: 'debug', name: 'bizli-db StateChanged (dispatch)', message: JSON.stringify(newState) });
+      this.logger.log({ level: 'debug', name: 'bizli-db ActionDispatched', message: JSON.stringify(action) });
+      this.logger.log({ level: 'debug', name: 'bizli-db StateChanged (dispatch)', message: JSON.stringify(newState) });
 
       this.actions.next(action);
       this.states.next(newState);
       this.effects.next({ action, state: newState });
 
-      this.fileHandler.dispatch(action);
-      this.fileHandler.changeState(newState);
+      this.fileHandler.saveState(newState);
     }, error => {
-      this.fileHandler.log({ level: 'error', name: `bizli-db ActionDispatched / StateChanged: ${error.name}`, message: error.message, stack: error.stack });
+      this.logger.log({ level: 'error', name: `bizli-db ActionDispatched / StateChanged: ${error.name}`, message: error.message, stack: error.stack });
     });
   }
 
-  public select<TSubState>(select?: Select<TState, TSubState>, compare?: Compare<TSubState>): Observable<TSubState>;
-  public select(select?: Select<TState, TState>, compare?: Compare<TState>): Observable<TState> {
-    this.fileHandler.log({
+  select<TSubState>(select?: Select<TState, TSubState>, compare?: Compare<TSubState>): Observable<TSubState>;
+  select(select?: Select<TState, TState>, compare?: Compare<TState>): Observable<TState> {
+    this.logger.log({
       level: 'debug',
       name: 'bizli-db StateSelected',
       message: `Select: ${JSON.stringify(select)}, Compare: ${JSON.stringify(compare)}`,
@@ -100,8 +116,8 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
     );
   }
 
-  public effect(actions: Array<string | TActionType>): Observable<Effect<TState, TActionType, TAction>> {
-    this.fileHandler.log({ level: 'debug', name: 'bizli-db ActionsObserved', message: JSON.stringify(actions) });
+  effect(actions: Array<string | TActionType>): Observable<Effect<TState, TActionType, TAction>> {
+    this.logger.log({ level: 'debug', name: 'bizli-db ActionsObserved', message: JSON.stringify(actions) });
     return this.fileLoadLatch.pipe(
       take(1),
       concatMap(() =>
@@ -114,7 +130,9 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
     );
   }
 
-  public dispose() {
+  dispose() {
+    this.fileLoadLatch.next();
+    this.fileLoadLatch.complete();
     this.destroy.next();
     this.destroy.complete();
     this.fileHandler.dispose();

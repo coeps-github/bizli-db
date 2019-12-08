@@ -1,19 +1,6 @@
 import * as fs from 'fs';
 import * as fsPath from 'path';
-import {
-  combineReducers,
-  createFilePath,
-  createTempFilePath,
-  fileExists,
-  last,
-  migrate,
-  mustBeLogged,
-  mustBeLoggedToConsole,
-  readFile,
-  renameFile,
-  writeFile,
-  writeFileAtomic,
-} from '../helpers';
+import { combineReducers, createFilePath, createTempFilePath, fileExists, last, migrate, readFile, renameFile, writeFile, writeFileAtomic } from '../helpers';
 import { TypedAction, VersionedState } from '../model';
 
 describe('helpers', () => {
@@ -234,79 +221,6 @@ describe('helpers', () => {
     });
   });
 
-  describe('mustBeLogged', () => {
-    test('should return true when error log, no matter the level in config', () => {
-      expect(mustBeLogged('error', { logLevel: 'error' })).toBeTruthy();
-      expect(mustBeLogged('error', { logLevel: 'info' })).toBeTruthy();
-      expect(mustBeLogged('error', {})).toBeTruthy();
-      expect(mustBeLogged('error', { logLevel: 'debug' })).toBeTruthy();
-    });
-
-    test('should return true when info log, for error and info (= undefined) level in config', () => {
-      expect(mustBeLogged('info', { logLevel: 'error' })).toBeFalsy();
-      expect(mustBeLogged('info', { logLevel: 'info' })).toBeTruthy();
-      expect(mustBeLogged('info', {})).toBeTruthy();
-      expect(mustBeLogged('info', { logLevel: 'debug' })).toBeTruthy();
-    });
-
-    test('should return true when debug log, for debug level in config', () => {
-      expect(mustBeLogged('debug', { logLevel: 'error' })).toBeFalsy();
-      expect(mustBeLogged('debug', { logLevel: 'info' })).toBeFalsy();
-      expect(mustBeLogged('debug', {})).toBeFalsy();
-      expect(mustBeLogged('debug', { logLevel: 'debug' })).toBeTruthy();
-    });
-  });
-
-  describe('mustBeLoggedToConsole', () => {
-    test('should return true when error log, no matter the level in config, and logToConsole true', () => {
-      expect(mustBeLoggedToConsole('error', { logLevel: 'error', logToConsole: true })).toBeTruthy();
-      expect(mustBeLoggedToConsole('error', { logLevel: 'info', logToConsole: true })).toBeTruthy();
-      expect(mustBeLoggedToConsole('error', { logToConsole: true })).toBeTruthy();
-      expect(mustBeLoggedToConsole('error', { logLevel: 'debug', logToConsole: true })).toBeTruthy();
-    });
-
-    test('should return true when info log, for error and info (= undefined) level in config, and logToConsole true', () => {
-      expect(mustBeLoggedToConsole('info', { logLevel: 'error', logToConsole: true })).toBeFalsy();
-      expect(mustBeLoggedToConsole('info', { logLevel: 'info', logToConsole: true })).toBeTruthy();
-      expect(mustBeLoggedToConsole('info', { logToConsole: true })).toBeTruthy();
-      expect(mustBeLoggedToConsole('info', { logLevel: 'debug', logToConsole: true })).toBeTruthy();
-    });
-
-    test('should return true when debug log, for debug level in config, and logToConsole true', () => {
-      expect(mustBeLoggedToConsole('debug', { logLevel: 'error', logToConsole: true })).toBeFalsy();
-      expect(mustBeLoggedToConsole('debug', { logLevel: 'info', logToConsole: true })).toBeFalsy();
-      expect(mustBeLoggedToConsole('debug', { logToConsole: true })).toBeFalsy();
-      expect(mustBeLoggedToConsole('debug', { logLevel: 'debug', logToConsole: true })).toBeTruthy();
-    });
-
-    test('should return false no mattter the log level, no matter the level in config, and logToConsole false or undefined', () => {
-      expect(mustBeLoggedToConsole('error', { logLevel: 'error', logToConsole: false })).toBeFalsy();
-      expect(mustBeLoggedToConsole('error', { logLevel: 'info', logToConsole: false })).toBeFalsy();
-      expect(mustBeLoggedToConsole('error', { logToConsole: false })).toBeFalsy();
-      expect(mustBeLoggedToConsole('error', { logLevel: 'debug', logToConsole: false })).toBeFalsy();
-      expect(mustBeLoggedToConsole('info', { logLevel: 'error', logToConsole: false })).toBeFalsy();
-      expect(mustBeLoggedToConsole('info', { logLevel: 'info', logToConsole: false })).toBeFalsy();
-      expect(mustBeLoggedToConsole('info', { logToConsole: false })).toBeFalsy();
-      expect(mustBeLoggedToConsole('info', { logLevel: 'debug', logToConsole: false })).toBeFalsy();
-      expect(mustBeLoggedToConsole('debug', { logLevel: 'error', logToConsole: false })).toBeFalsy();
-      expect(mustBeLoggedToConsole('debug', { logLevel: 'info', logToConsole: false })).toBeFalsy();
-      expect(mustBeLoggedToConsole('debug', { logToConsole: false })).toBeFalsy();
-      expect(mustBeLoggedToConsole('debug', { logLevel: 'debug', logToConsole: false })).toBeFalsy();
-      expect(mustBeLoggedToConsole('error', { logLevel: 'error' })).toBeFalsy();
-      expect(mustBeLoggedToConsole('error', { logLevel: 'info' })).toBeFalsy();
-      expect(mustBeLoggedToConsole('error', {})).toBeFalsy();
-      expect(mustBeLoggedToConsole('error', { logLevel: 'debug' })).toBeFalsy();
-      expect(mustBeLoggedToConsole('info', { logLevel: 'error' })).toBeFalsy();
-      expect(mustBeLoggedToConsole('info', { logLevel: 'info' })).toBeFalsy();
-      expect(mustBeLoggedToConsole('info', {})).toBeFalsy();
-      expect(mustBeLoggedToConsole('info', { logLevel: 'debug' })).toBeFalsy();
-      expect(mustBeLoggedToConsole('debug', { logLevel: 'error' })).toBeFalsy();
-      expect(mustBeLoggedToConsole('debug', { logLevel: 'info' })).toBeFalsy();
-      expect(mustBeLoggedToConsole('debug', {})).toBeFalsy();
-      expect(mustBeLoggedToConsole('debug', { logLevel: 'debug' })).toBeFalsy();
-    });
-  });
-
   describe('last', () => {
     test('should return undefined when undefined is input', () => {
       expect(last(undefined)).toBeUndefined();
@@ -392,9 +306,5 @@ describe('helpers', () => {
       })).toThrow();
     });
   });
-
-  // TODO: stringifyReducerMap
-  // TODO: stringifyReducer
-  // TODO: stringifySubStateReducer
 
 });

@@ -1,4 +1,5 @@
 import { Observable } from 'rxjs';
+import * as logger from 'winston';
 
 export interface BizliDbFactoryConfig<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
   readonly config?: Config<TState>;
@@ -6,7 +7,9 @@ export interface BizliDbFactoryConfig<TState extends VersionedState, TActionType
 }
 
 export interface BizliDb<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
-  configure(config?: Config<TState>): void;
+  configure(config?: BizliDbConfig): void;
+
+  loadState(): void;
 
   reduce(reducer: ActionReducer<TState, TActionType, TAction> | ActionReducerMap<TState, TActionType, TAction>): void;
 
@@ -21,40 +24,36 @@ export interface BizliDb<TState extends VersionedState, TActionType extends stri
   dispose(): void;
 }
 
-export interface Config<TState extends VersionedState> {
+export type Config<TState extends VersionedState> = BizliDbConfig & FileHandlerConfig<TState> & LoggerConfig;
+
+// tslint:disable-next-line:no-empty-interface
+export interface BizliDbConfig {
+}
+
+export interface FileHandlerConfig<TState extends VersionedState> {
   readonly fileName?: string; // default db.json
   readonly path?: string; // default executing directory
-  readonly migration?: Migration<TState> // default nothing to migrate
-  readonly logLevel?: LogLevel; // default info
-  readonly logToConsole?: boolean; // default false
+  readonly migration?: Migration<TState>; // default nothing to migrate
+}
 
-  // TODO: Maybe ... KISS YAGNI
-  // readonly maxHistory: number; // 0 is infinite, default 0
-  // readonly maxSizeBytes: number; // 0 is infinite, default 0
-  // readonly rotate: number; // 0 is no rotation, default 0
-  // readonly compress: boolean; // zip rotated files
+export interface LoggerConfig {
+  readonly logger?: logger.LoggerOptions;
 }
 
 export interface FileHandler<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
-  configure(config?: Config<TState>): Observable<TState | undefined>;
+  configure(config?: FileHandlerConfig<TState>): void;
 
-  reduce(reducer: string): void;
+  loadState(): Observable<TState | undefined>;
 
-  dispatch(action: TAction): void;
-
-  changeState(state: TState | undefined): void;
-
-  log(log: Log): void;
+  saveState(state: TState | undefined): void;
 
   dispose(): void;
 }
 
-export interface File<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
-  readonly configs: Array<Config<TState>>;
-  readonly reducers: string[];
-  readonly actions: TAction[];
-  readonly states: TState[];
-  readonly logs: Log[];
+export interface Logger {
+  configure(config?: LoggerConfig): void;
+
+  log(log: Log): void;
 }
 
 export interface VersionedState {
@@ -92,16 +91,6 @@ export type ActionReducerMap<TState extends VersionedState, TActionType extends 
 
 export type SubStateActionReducer<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> =
   (state: TSubState | undefined, action: TAction) => TSubState;
-
-export interface ActionReducerMetadata<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
-  readonly initialState: TState;
-  readonly ons: Array<On<TState, TActionType, TAction>>
-}
-
-export interface SubStateActionReducerMetadata<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
-  readonly initialState: TSubState;
-  readonly ons: Array<OnSubState<TSubState, TActionType, TAction>>
-}
 
 export interface Effect<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
   state: TState,
