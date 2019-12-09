@@ -1,15 +1,15 @@
 import { AsyncSubject, BehaviorSubject, Observable, of, Subject } from 'rxjs';
-import { concatMap, filter, map, take, takeUntil, throttleTime } from 'rxjs/operators';
+import { concatMap, filter, map, take, takeUntil, tap, throttleTime } from 'rxjs/operators';
 import { createFilePath, fileExists, migrate, readFile, writeFileAtomic } from './helpers';
 import { Action, FileHandler, FileHandlerConfig, Logger, TypedAction, VersionedState } from './model';
 
-export class FileHandlerImpl<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> implements FileHandler<TState, TActionType, TAction> {
+export class FileHandlerImpl<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>, TLoggerConfig> implements FileHandler<TState, TActionType, TAction> {
   private config: FileHandlerConfig<TState>;
   private file: BehaviorSubject<TState | undefined>;
   private fileLoadLatch: AsyncSubject<void>;
   private readonly destroy: Subject<void>;
 
-  constructor(private logger: Logger) {
+  constructor(private logger: Logger<TLoggerConfig>) {
     this.config = {};
     this.file = new BehaviorSubject<TState | undefined>(undefined);
     this.fileLoadLatch = new AsyncSubject();
@@ -32,9 +32,10 @@ export class FileHandlerImpl<TState extends VersionedState, TActionType extends 
     this.fileLoadLatch.complete();
   }
 
-  configure(config?: FileHandlerConfig<TState>) {
-    this.logger.log({ level: 'debug', name: 'file-handler ConfigChanged', message: JSON.stringify(config) });
-    this.config = config || this.config;
+  configure(config: FileHandlerConfig<TState>) {
+    this.logger.log({ level: 'debug', name: 'file-handler ConfigChanged (before)', message: JSON.stringify(this.config) });
+    this.config = { ...this.config, ...config };
+    this.logger.log({ level: 'debug', name: 'file-handler ConfigChanged (after)', message: JSON.stringify(this.config) });
   }
 
   loadState(): Observable<TState | undefined> {
@@ -46,7 +47,17 @@ export class FileHandlerImpl<TState extends VersionedState, TActionType extends 
             if (this.config.migration) {
               return readFile(createFilePath(this.config.fileName, this.config.path), 'utf8').pipe(
                 map(currentFileString => JSON.parse(currentFileString)),
+                tap(file => this.logger.log({
+                  level: 'info',
+                  name: 'file-handler Migration (before)',
+                  message: `Starting migration from version ${file.version} to ${this.config.migration?.targetVersion}`,
+                })),
                 map(file => migrate(file, this.config.migration)),
+                tap(file => this.logger.log({
+                  level: 'info',
+                  name: 'file-handler Migration (after)',
+                  message: `Finished migration with version ${file.version}`,
+                })),
                 concatMap(file =>
                   writeFileAtomic(createFilePath(this.config.fileName, this.config.path), JSON.stringify(file), 'utf8').pipe(
                     map(() => file),

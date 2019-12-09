@@ -16,7 +16,7 @@ import {
   VersionedState,
 } from './model';
 
-export class BizliDbImpl<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> implements BizliDb<TState, TActionType, TAction> {
+export class BizliDbImpl<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>, TLoggerConfig> implements BizliDb<TState, TActionType, TAction> {
   private config: BizliDbConfig;
   private reducer: ActionReducer<TState, TActionType, TAction>;
   private actions: BehaviorSubject<TAction | undefined>;
@@ -25,7 +25,7 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
   private fileLoadLatch: AsyncSubject<void>;
   private readonly destroy: Subject<void>;
 
-  constructor(private fileHandler: FileHandler<TState, TActionType, TAction>, private logger: Logger) {
+  constructor(private fileHandler: FileHandler<TState, TActionType, TAction>, private logger: Logger<TLoggerConfig>) {
     this.config = {};
     this.reducer = (state: any) => state;
     this.actions = new BehaviorSubject<TAction | undefined>(undefined);
@@ -38,9 +38,10 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
     this.fileLoadLatch.complete();
   }
 
-  configure(config?: BizliDbConfig) {
-    this.logger.log({ level: 'debug', name: 'bizli-db ConfigChanged', message: JSON.stringify(config) });
-    this.config = config || this.config;
+  configure(config: BizliDbConfig) {
+    this.logger.log({ level: 'debug', name: 'bizli-db ConfigChanged (before)', message: JSON.stringify(this.config) });
+    this.config = { ...this.config, ...config };
+    this.logger.log({ level: 'debug', name: 'bizli-db ConfigChanged (after)', message: JSON.stringify(this.config) });
   }
 
   loadState() {
@@ -61,14 +62,8 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
   }
 
   reduce(reducer: ActionReducer<TState, TActionType, TAction> | ActionReducerMap<TState, TActionType, TAction>) {
-    this.fileLoadLatch.pipe(
-      take(1),
-    ).subscribe(() => {
-      this.reducer = typeof reducer === 'function' ? reducer : combineReducers(reducer);
-      this.logger.log({ level: 'debug', name: 'bizli-db ReducerChanged', message: '...' });
-    }, error => {
-      this.logger.log({ level: 'error', name: `bizli-db ReducerChanged: ${error.name}`, message: error.message, stack: error.stack });
-    });
+    this.logger.log({ level: 'debug', name: 'bizli-db ReducerChanged', message: '...' });
+    this.reducer = typeof reducer === 'function' ? reducer : combineReducers(reducer);
   }
 
   dispatch(action: TAction) {

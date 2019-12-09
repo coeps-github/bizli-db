@@ -1,7 +1,7 @@
 import { of } from 'rxjs';
 import { skip, take } from 'rxjs/operators';
 import { BizliDbImpl } from '../bizli-db';
-import { Action, ActionReducerMap, FileHandler, TypedAction, VersionedState } from '../model';
+import { Action, ActionReducerMap, FileHandler, Logger, TypedAction, VersionedState } from '../model';
 
 interface State extends VersionedState {
   version: number;
@@ -101,38 +101,25 @@ const expectedSubState1: SubState1 = {
 const expectedSubState2: SubState2 = {
   value2: 'test2',
 };
-const FileHandlerMock = jest.fn<FileHandler<any, any, any>, any>((state?: any) => ({
-  changeState: jest.fn(),
-  configure: jest.fn(() => of(state)),
-  dispatch: jest.fn(),
-  dispose: jest.fn(),
+const LoggerMock = jest.fn<Logger<any>, any>(() => ({
+  configure: jest.fn(),
   log: jest.fn(),
-  reduce: jest.fn(),
 }));
-const BizliDb = () => new BizliDbImpl(new FileHandlerMock());
+const FileHandlerMock = jest.fn<FileHandler<any, any, any>, any>((state?: any) => ({
+  configure: jest.fn(),
+  saveState: jest.fn(),
+  loadState: jest.fn(() => of(state)),
+  dispose: jest.fn(),
+}));
+const BizliDb = () => new BizliDbImpl(new FileHandlerMock(), new LoggerMock());
 
 describe('bizli-db', () => {
 
   describe('configure', () => {
-    test('should call configure on file handler without config when no config given', () => {
-      const mock = new FileHandlerMock();
-      const bizliDb = new BizliDbImpl(mock);
-      bizliDb.configure();
-      expect(mock.configure).toHaveBeenCalledWith(undefined);
-    });
-
-    test('should call configure on file handler with given config', () => {
-      const mock = new FileHandlerMock();
-      const bizliDb = new BizliDbImpl(mock);
-      const config = { fileName: 'test.abc' };
-      bizliDb.configure(config);
-      expect(mock.configure).toHaveBeenCalledWith(config);
-    });
-
     test('should not apply any state change when file handler returns undefined', done => {
       const mock = new FileHandlerMock();
-      const bizliDb = new BizliDbImpl(mock);
-      bizliDb.configure();
+      const bizliDb = new BizliDbImpl(mock, new LoggerMock());
+      bizliDb.loadState();
       bizliDb.select().pipe(take(1)).subscribe(state => {
         done.fail();
       });
@@ -142,8 +129,8 @@ describe('bizli-db', () => {
     test('should apply state change when file handler returns new state', done => {
       const expectedState = { test: 'test' };
       const mock = new FileHandlerMock(expectedState);
-      const bizliDb = new BizliDbImpl(mock);
-      bizliDb.configure();
+      const bizliDb = new BizliDbImpl(mock, new LoggerMock());
+      bizliDb.loadState();
       bizliDb.select().pipe(take(1)).subscribe(state => {
         expect(state).toEqual(state);
         done();
@@ -152,18 +139,16 @@ describe('bizli-db', () => {
   });
 
   describe('reduce and dispatch', () => {
-    test('should call changeState and dispatch on file handler after calculating new state with the given reducer and action', () => {
+    test('should call saveState and dispatch on file handler after calculating new state with the given reducer and action', () => {
       const expectedState = { test: 'test' };
       const reducer = jest.fn(() => expectedState);
       const action = { type: 'test' };
       const mock = new FileHandlerMock();
-      const bizliDb = new BizliDbImpl(mock);
+      const bizliDb = new BizliDbImpl(mock, new LoggerMock());
       bizliDb.reduce(reducer);
       bizliDb.dispatch(action);
-      expect(mock.reduce).toHaveBeenCalledWith(reducer);
       expect(reducer).toHaveBeenCalledWith(undefined, action);
-      expect(mock.changeState).toHaveBeenCalledWith(expectedState);
-      expect(mock.dispatch).toHaveBeenCalledWith(action);
+      expect(mock.saveState).toHaveBeenCalledWith(expectedState);
     });
 
     test('should add a single reducer and have the reducers initial state in state, when dispatching an unhandled action', done => {

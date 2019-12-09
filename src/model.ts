@@ -1,13 +1,13 @@
 import { Observable } from 'rxjs';
-import * as logger from 'winston';
+import * as winston from 'winston';
 
 export interface BizliDbFactoryConfig<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
-  readonly config?: Config<TState>;
+  readonly config?: Config<TState, winston.LoggerOptions>;
   readonly reducer?: ActionReducer<TState, TActionType, TAction> | ActionReducerMap<TState, TActionType, TAction>;
 }
 
 export interface BizliDb<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
-  configure(config?: BizliDbConfig): void;
+  configure(config: BizliDbConfig): void;
 
   loadState(): void;
 
@@ -24,7 +24,11 @@ export interface BizliDb<TState extends VersionedState, TActionType extends stri
   dispose(): void;
 }
 
-export type Config<TState extends VersionedState> = BizliDbConfig & FileHandlerConfig<TState> & LoggerConfig;
+export interface Config<TState extends VersionedState, TLoggerConfig> {
+  readonly bizliDbConfig?: BizliDbConfig;
+  readonly fileHandlerConfig?: FileHandlerConfig<TState>;
+  readonly loggerConfig?: TLoggerConfig;
+}
 
 // tslint:disable-next-line:no-empty-interface
 export interface BizliDbConfig {
@@ -36,12 +40,8 @@ export interface FileHandlerConfig<TState extends VersionedState> {
   readonly migration?: Migration<TState>; // default nothing to migrate
 }
 
-export interface LoggerConfig {
-  readonly logger?: logger.LoggerOptions;
-}
-
 export interface FileHandler<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
-  configure(config?: FileHandlerConfig<TState>): void;
+  configure(config: FileHandlerConfig<TState>): void;
 
   loadState(): Observable<TState | undefined>;
 
@@ -50,8 +50,8 @@ export interface FileHandler<TState extends VersionedState, TActionType extends 
   dispose(): void;
 }
 
-export interface Logger {
-  configure(config?: LoggerConfig): void;
+export interface Logger<TLoggerConfig> {
+  configure(config: TLoggerConfig): void;
 
   log(log: Log): void;
 }

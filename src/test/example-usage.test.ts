@@ -1,4 +1,5 @@
 import { skip, take } from 'rxjs/operators';
+import * as winston from 'winston';
 import { bizliDbFactory } from '../bizli-db-factory';
 import { createReducer, on } from '../helpers';
 import { ActionReducerMap, Config, TypedAction } from '../model';
@@ -44,9 +45,33 @@ describe('example-usage', () => {
       readonly species: string;
     }
 
-    const config: Config<State> = {
-      logLevel: 'debug',
-      logToConsole: true,
+    const config: Config<State, winston.LoggerOptions> = {
+      // default bizli-db config
+      bizliDbConfig: {},
+      // default file handler config
+      fileHandlerConfig: {
+        fileName: 'db.json',
+        path: '',
+        // example migration config (default undefined)
+        migration: {
+          targetVersion: 1,
+          // migrate from version 0 to version 1
+          0: (state: any) => ({
+            ...state,
+            version: 1,
+          }),
+        },
+      },
+      // default logger config
+      loggerConfig: {
+        level: 'debug', // default info
+        format: winston.format.json(),
+        transports: [
+          new winston.transports.Console(),
+          new winston.transports.File({ filename: 'error.log', level: 'error' }),
+          new winston.transports.File({ filename: 'combined.log' }),
+        ],
+      },
     };
 
     const initialPersonState = {
@@ -78,7 +103,7 @@ describe('example-usage', () => {
     }, 'ChangePetNameAction'));
 
     const reducer: ActionReducerMap<State, ActionType, Actions> = {
-      version: 1234,
+      version: 0,
       person: personReducer,
       pet: petReducer,
     };
