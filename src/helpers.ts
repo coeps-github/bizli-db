@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import { NoParamCallback, PathLike, WriteFileOptions } from 'fs';
 import * as fsPath from 'path';
 import { bindNodeCallback, Observable, of } from 'rxjs';
-import { catchError, concatMap, map } from 'rxjs/operators';
+import { catchError, exhaustMap, map } from 'rxjs/operators';
 import { Action, ActionReducer, ActionReducerMap, Migration, On, OnSubState, SubStateActionReducer, TypedAction, VersionedState } from './model';
 
 export function createReducer<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>, TAsAction extends Action | TypedAction<TActionType>>
@@ -58,7 +58,7 @@ export function renameFile(oldFilePath: string, newFilePath: string): Observable
   return renameFileBinder(oldFilePath, newFilePath);
 }
 
-export function readFile(filePath: string, fileEncoding: string): Observable<string> {
+export function readFile(filePath: string, fileEncoding: string = 'utf8'): Observable<string> {
   const readFileBinder = bindNodeCallback((
     path: PathLike | number,
     options: { encoding: string; flag?: string; } | string,
@@ -67,7 +67,7 @@ export function readFile(filePath: string, fileEncoding: string): Observable<str
   return readFileBinder(filePath, { encoding: fileEncoding });
 }
 
-export function writeFile(filePath: string, fileData: string, fileEncoding: string): Observable<void> {
+export function writeFile(filePath: string, fileData: string, fileEncoding: string = 'utf8'): Observable<void> {
   const writeFileBinder = bindNodeCallback((
     path: PathLike | number,
     data: any,
@@ -77,10 +77,10 @@ export function writeFile(filePath: string, fileData: string, fileEncoding: stri
   return writeFileBinder(filePath, fileData, { encoding: fileEncoding });
 }
 
-export function writeFileAtomic(filePath: string, fileData: string, fileEncoding: string): Observable<void> {
+export function writeFileAtomic(filePath: string, fileData: string, fileEncoding: string = 'utf8'): Observable<void> {
   const tempFilePath = createTempFilePath(filePath);
   return writeFile(tempFilePath, fileData, fileEncoding).pipe(
-    concatMap(() => renameFile(tempFilePath, filePath)),
+    exhaustMap(() => renameFile(tempFilePath, filePath)),
   );
 }
 

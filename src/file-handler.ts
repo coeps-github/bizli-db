@@ -1,5 +1,5 @@
 import { AsyncSubject, BehaviorSubject, Observable, of, Subject } from 'rxjs';
-import { concatMap, filter, map, take, takeUntil, tap, throttleTime } from 'rxjs/operators';
+import { exhaustMap, filter, map, shareReplay, take, takeUntil, tap, throttleTime } from 'rxjs/operators';
 import { createFilePath, fileExists, migrate, readFile, writeFileAtomic } from './helpers';
 import { Action, FileHandler, FileHandlerConfig, Logger, TypedAction, VersionedState } from './model';
 
@@ -19,8 +19,8 @@ export class FileHandlerImpl<TState extends VersionedState, TActionType extends 
       takeUntil(this.destroy),
       filter(file => !!file),
       throttleTime(1000, undefined, { leading: true, trailing: true }),
-      concatMap(file =>
-        writeFileAtomic(createFilePath(this.config.fileName, this.config.path), JSON.stringify(file), 'utf8'),
+      exhaustMap(file =>
+        writeFileAtomic(createFilePath(this.config.fileName, this.config.path), JSON.stringify(file)),
       ),
     ).subscribe(() => {
       this.logger.log({ level: 'debug', name: 'file-handler FileWritten', message: '...' });
@@ -42,36 +42,36 @@ export class FileHandlerImpl<TState extends VersionedState, TActionType extends 
     this.fileLoadLatch = new AsyncSubject();
     const fileObservable =
       fileExists(createFilePath(this.config.fileName, this.config.path)).pipe(
-        concatMap(exists => {
+        exhaustMap(exists => {
           if (exists) {
             if (this.config.migration) {
-              return readFile(createFilePath(this.config.fileName, this.config.path), 'utf8').pipe(
+              return readFile(createFilePath(this.config.fileName, this.config.path)).pipe(
                 map(currentFileString => JSON.parse(currentFileString)),
                 tap(file => this.logger.log({
                   level: 'info',
                   name: 'file-handler Migration (before)',
-                  message: `Starting migration from version ${file.version} to ${this.config.migration?.targetVersion}`,
+                  message: `Starting migration from version ${file.version} to ${this.config.migration?.targetVersion} | ${JSON.stringify(file)}`,
                 })),
                 map(file => migrate(file, this.config.migration)),
                 tap(file => this.logger.log({
                   level: 'info',
                   name: 'file-handler Migration (after)',
-                  message: `Finished migration with version ${file.version}`,
+                  message: `Finished migration with version ${file.version} | ${JSON.stringify(file)}`,
                 })),
-                concatMap(file =>
-                  writeFileAtomic(createFilePath(this.config.fileName, this.config.path), JSON.stringify(file), 'utf8').pipe(
+                exhaustMap(file =>
+                  writeFileAtomic(createFilePath(this.config.fileName, this.config.path), JSON.stringify(file)).pipe(
                     map(() => file),
                   ),
                 ),
               );
             }
-            return readFile(createFilePath(this.config.fileName, this.config.path), 'utf8').pipe(
+            return readFile(createFilePath(this.config.fileName, this.config.path)).pipe(
               map(currentFileString => JSON.parse(currentFileString) as TState),
             );
           }
           return of(undefined);
         }),
-      );
+      ).pipe(shareReplay(1));
     fileObservable.subscribe(file => {
       this.logger.log({ level: 'debug', name: 'file-handler FileLoaded', message: JSON.stringify(file) });
       if (file) {

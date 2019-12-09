@@ -114,7 +114,7 @@ describe('helpers', () => {
     });
 
     test('should not rename non-existing file', done => {
-      renameFile(`${__dirname}/files/non-existing.json`, 'utf8').subscribe(() => {
+      renameFile(`${__dirname}/files/non-existing.json`, 'any').subscribe(() => {
         // Nothing
       }, error => {
         expect(error).not.toBeUndefined();
@@ -125,7 +125,7 @@ describe('helpers', () => {
 
   describe('readFile', () => {
     test('should read existing file', done => {
-      readFile(`${__dirname}/files/simple.json`, 'utf8').subscribe(file => {
+      readFile(`${__dirname}/files/simple.json`).subscribe(file => {
         expect(JSON.parse(file)).toEqual({
           test: 'test',
         });
@@ -134,7 +134,7 @@ describe('helpers', () => {
     });
 
     test('should not read non-existing file', done => {
-      readFile(`${__dirname}/files/non-existing.json`, 'utf8').subscribe(() => {
+      readFile(`${__dirname}/files/non-existing.json`).subscribe(() => {
         // Nothing
       }, error => {
         expect(error).not.toBeUndefined();
@@ -146,7 +146,7 @@ describe('helpers', () => {
   describe('writeFile', () => {
     test('should write existing file', done => {
       const path = `${__dirname}/files/write.json`;
-      writeFile(path, JSON.stringify({ test: 'test' }), 'utf8').subscribe(() => {
+      writeFile(path, JSON.stringify({ test: 'test' })).subscribe(() => {
         const newPathFileJson = JSON.parse(fs.readFileSync(path, { encoding: 'utf8' }));
         expect(newPathFileJson).toEqual({ test: 'test' });
         done();
@@ -160,7 +160,7 @@ describe('helpers', () => {
         fs.unlinkSync(path);
       }
 
-      writeFile(`${__dirname}/temp/write.json`, JSON.stringify({ test: 'test' }), 'utf8').subscribe(() => {
+      writeFile(`${__dirname}/temp/write.json`, JSON.stringify({ test: 'test' })).subscribe(() => {
         const newPathFileJson = JSON.parse(fs.readFileSync(path, { encoding: 'utf8' }));
         expect(newPathFileJson).toEqual({ test: 'test' });
         done();
@@ -171,7 +171,7 @@ describe('helpers', () => {
   describe('writeFileAtomic', () => {
     test('should write existing file', done => {
       const path = `${__dirname}/files/write.json`;
-      writeFileAtomic(path, JSON.stringify({ test: 'test' }), 'utf8').subscribe(() => {
+      writeFileAtomic(path, JSON.stringify({ test: 'test' })).subscribe(() => {
         const newPathFileJson = JSON.parse(fs.readFileSync(path, { encoding: 'utf8' }));
         expect(newPathFileJson).toEqual({ test: 'test' });
         done();
@@ -185,7 +185,7 @@ describe('helpers', () => {
         fs.unlinkSync(path);
       }
 
-      writeFileAtomic(`${__dirname}/temp/write.json`, JSON.stringify({ test: 'test' }), 'utf8').subscribe(() => {
+      writeFileAtomic(`${__dirname}/temp/write.json`, JSON.stringify({ test: 'test' })).subscribe(() => {
         const newPathFileJson = JSON.parse(fs.readFileSync(path, { encoding: 'utf8' }));
         expect(newPathFileJson).toEqual({ test: 'test' });
         done();
