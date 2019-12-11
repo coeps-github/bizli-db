@@ -11,6 +11,7 @@ import {
   Effect,
   FileHandler,
   Logger,
+  ReduxDevToolsExtension,
   Select,
   TypedAction,
   VersionedState,
@@ -25,7 +26,11 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
   private fileLoadLatch: AsyncSubject<void>;
   private readonly destroy: Subject<void>;
 
-  constructor(private fileHandler: FileHandler<TState, TActionType, TAction>, private logger: Logger<TLoggerConfig>) {
+  constructor(
+    private fileHandler: FileHandler<TState, TActionType, TAction>,
+    private reduxDevToolsExtension: ReduxDevToolsExtension<TState, TActionType, TAction>,
+    private logger: Logger<TLoggerConfig>,
+  ) {
     this.config = {};
     this.reducer = (state: any) => state;
     this.actions = new BehaviorSubject<TAction | undefined>(undefined);
@@ -33,6 +38,23 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
     this.effects = new BehaviorSubject<Effect<TState, TActionType, TAction> | undefined>(undefined);
     this.fileLoadLatch = new AsyncSubject();
     this.destroy = new Subject();
+
+    this.reduxDevToolsExtension.receive(
+      () => {
+        const state = this.states.value;
+        this.logger.log({ level: 'debug', name: 'bizli-db GetState (reduxDevToolsExtension)', message: JSON.stringify(state) });
+        return state;
+      },
+      (state: TState | undefined) => {
+        this.logger.log({ level: 'debug', name: 'bizli-db StateChanged (reduxDevToolsExtension)', message: JSON.stringify(state) });
+        this.states.next(state);
+        this.fileHandler.saveState(state);
+      },
+      (action: TAction) => {
+        this.logger.log({ level: 'debug', name: 'bizli-db ActionDispatched (reduxDevToolsExtension)', message: JSON.stringify(action) });
+        this.dispatch(action);
+      },
+    );
 
     this.fileLoadLatch.next();
     this.fileLoadLatch.complete();
@@ -77,7 +99,7 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
     ).subscribe(state => {
       const newState = this.reducer(state, action);
 
-      this.logger.log({ level: 'debug', name: 'bizli-db ActionDispatched', message: JSON.stringify(action) });
+      this.logger.log({ level: 'debug', name: 'bizli-db ActionDispatched (dispatch)', message: JSON.stringify(action) });
       this.logger.log({ level: 'debug', name: 'bizli-db StateChanged (dispatch)', message: JSON.stringify(newState) });
 
       this.actions.next(action);
@@ -85,6 +107,7 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
       this.effects.next({ action, state: newState });
 
       this.fileHandler.saveState(newState);
+      this.reduxDevToolsExtension.send(action, newState);
     }, error => {
       this.logger.log({ level: 'error', name: `bizli-db ActionDispatched / StateChanged: ${error.name}`, message: error.message, stack: error.stack });
     });
@@ -131,5 +154,7 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
     this.destroy.next();
     this.destroy.complete();
     this.fileHandler.dispose();
+    this.reduxDevToolsExtension.dispose();
+    this.logger.dispose();
   }
 }

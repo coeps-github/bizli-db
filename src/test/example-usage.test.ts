@@ -48,18 +48,39 @@ describe('example-usage', () => {
     const config: Config<State, winston.LoggerOptions> = {
       // default bizli-db config
       bizliDbConfig: {},
-      // default file handler config
+      // default file-handler config
       fileHandlerConfig: {
         fileName: 'db.json',
         path: '',
         // example migration config (default undefined)
         migration: {
-          targetVersion: 1,
+          targetVersion: 2,
           // migrate from version 0 to version 1
           0: (state: any) => ({
             ...state,
             version: 1,
           }),
+          // migrate from version 1 to version 2
+          1: (state: any) => ({
+            ...state,
+            version: 2,
+          }),
+        },
+      },
+      // default redux-devtools-extension config
+      reduxDevToolsExtensionConfig: {
+        enabled: true, // default false
+        // default remotedev config (default undefined)
+        remotedev: {
+          instanceId: undefined, // default generated
+          hostname: 'remotedev.io',
+          port: 443,
+          secure: true,
+          autoReconnect: true,
+          // default auto reconnect options (default undefined)
+          autoReconnectOptions: {
+            randomness: 60000,
+          },
         },
       },
       // default logger config

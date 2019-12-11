@@ -120,3 +120,7 @@ export function migrate<TState extends VersionedState>(oldState: VersionedState,
   }
   return resultState;
 }
+
+export function parse<T>(thing: string | object | T): T {
+  return (typeof thing === 'string' ? JSON.parse(thing) : thing) as T;
+}

@@ -34,19 +34,20 @@
   "homepage": "https://github.com/coeps-github/bizli-db#readme",
   "devDependencies": {
     "@types/jest": "^24.0.23",
-    "@types/node": "^12.12.12",
+    "@types/node": "^12.12.17",
     "codecov": "^3.6.1",
     "jest": "^24.9.0",
     "prettier": "^1.19.1",
-    "ts-jest": "^24.1.0",
+    "ts-jest": "^24.2.0",
     "tslint": "^5.20.1",
     "tslint-config-prettier": "^1.18.0",
-    "typescript": "^3.7.2"
+    "typescript": "^3.7.3"
   },
   "dependencies": {
+    "remotedev": "^0.2.9",
     "rxjs": "^6.5.3",
     "winston": "^3.2.1",
-    "winston-daily-rotate-file": "^4.3.0",
+    "winston-daily-rotate-file": "^4.3.1",
     "winston-transport": "^4.3.0"
   }
 }

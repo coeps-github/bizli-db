@@ -27,6 +27,7 @@ export interface BizliDb<TState extends VersionedState, TActionType extends stri
 export interface Config<TState extends VersionedState, TLoggerConfig> {
   readonly bizliDbConfig?: BizliDbConfig;
   readonly fileHandlerConfig?: FileHandlerConfig<TState>;
+  readonly reduxDevToolsExtensionConfig?: ReduxDevToolsExtensionConfig;
   readonly loggerConfig?: TLoggerConfig;
 }
 
@@ -40,6 +41,22 @@ export interface FileHandlerConfig<TState extends VersionedState> {
   readonly migration?: Migration<TState>; // default nothing to migrate
 }
 
+export interface ReduxDevToolsExtensionConfig {
+  readonly enabled?: boolean; // default false
+  readonly remotedev?: ReduxDevToolsExtensionRemoteDevConfig
+}
+
+export interface ReduxDevToolsExtensionRemoteDevConfig {
+  readonly instanceId?: string; // default generated
+  readonly hostname?: string; // default remotedev.io
+  readonly port?: number; // default 443
+  readonly secure?: boolean; // default true
+  readonly autoReconnect?: boolean; // default true
+  readonly autoReconnectOptions?: {
+    readonly randomness?: number; // default 60000
+  }
+}
+
 export interface FileHandler<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
   configure(config: FileHandlerConfig<TState>): void;
 
@@ -50,10 +67,22 @@ export interface FileHandler<TState extends VersionedState, TActionType extends 
   dispose(): void;
 }
 
+export interface ReduxDevToolsExtension<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
+  configure(config: ReduxDevToolsExtensionConfig): void;
+
+  send(action: TAction, state: TState | undefined): void;
+
+  receive(getState: () => TState | undefined, updateState: (state: TState | undefined) => void, dispatchAction: (action: TAction) => void): void;
+
+  dispose(): void;
+}
+
 export interface Logger<TLoggerConfig> {
   configure(config: TLoggerConfig): void;
 
   log(log: Log): void;
+
+  dispose(): void;
 }
 
 export interface VersionedState {
@@ -93,8 +122,8 @@ export type SubStateActionReducer<TSubState, TActionType extends string, TAction
   (state: TSubState | undefined, action: TAction) => TSubState;
 
 export interface Effect<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
-  state: TState,
-  action: TAction,
+  readonly state: TState,
+  readonly action: TAction,
 }
 
 export type Migration<TState extends VersionedState> = MigrationTargetVersion & MigrationFunctions<TState>;
@@ -108,6 +137,20 @@ export interface MigrationFunctions<TState extends VersionedState> {
   // value: migrate function to transform a state to the next version
   [key: number]: <TPrevState>(previousState: TPrevState | undefined) => TState;
 }
+
+export interface ReduxDevToolsExtensionAction<TState> {
+  readonly instanceId: string;
+  readonly type: 'DISPATCH' | 'ACTION';
+  readonly state: TState | undefined;
+  readonly action: {
+    readonly type: ReduxDevToolsExtensionActionType;
+  } | string;
+  readonly payload: {
+    readonly type: ReduxDevToolsExtensionActionType;
+  } | string;
+}
+
+export type ReduxDevToolsExtensionActionType = 'RESET' | 'COMMIT' | 'ROLLBACK' | 'JUMP_TO_STATE' | 'JUMP_TO_ACTION' | 'TOGGLE_ACTION' | 'IMPORT_STATE' | string;
 
 export type LogLevel = 'error' | 'info' | 'debug';
 

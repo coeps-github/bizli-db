@@ -29,6 +29,10 @@ export class WinstonLogger implements Logger<winston.LoggerOptions> {
     this.logger.log({ level: log.level, message: log.message, meta: log.name });
   }
 
+  dispose() {
+    this.logger.close();
+  }
+
   // TODO: .toString() not working, circular references not either
   private stringifyConfig(config: winston.LoggerOptions) {
     return JSON.stringify({
