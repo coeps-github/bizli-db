@@ -17,7 +17,8 @@ npm install @coeps/bizli-db --save
 
 ```typescript
 
-import { take, skip } from 'rxjs/operators';
+import { skip, take } from 'rxjs/operators';
+import * as winston from 'winston';
 import {
   ActionReducerMap,
   bizliDbFactory,
@@ -64,10 +65,57 @@ interface PetState {
   readonly species: string;
 }
 
-// TODO: add config
-const config: Config<State> = {
-  logLevel: 'debug',
-  logToConsole: true,
+const config: Config<State, winston.LoggerOptions> = {
+  // default bizli-db config
+  bizliDbConfig: {},
+  // default file-handler config
+  fileHandlerConfig: {
+    fileName: 'db.json',
+    path: '',
+    // example migration config (default undefined)
+    migration: {
+      targetVersion: 2,
+      // migrate from version 0 to version 1
+      0: (state: any) => ({
+        ...state,
+        version: 1,
+      }),
+      // migrate from version 1 to version 2
+      1: (state: any) => ({
+        ...state,
+        version: 2,
+      }),
+    },
+  },
+  // default redux-devtools-extension config
+  reduxDevToolsExtensionConfig: {
+    enabled: true, // default false
+    // default remotedev config (default undefined)
+    remotedev: {
+      instanceId: undefined, // default generated
+      hostname: 'remotedev.io',
+      port: 443,
+      secure: true,
+      autoReconnect: true,
+      // default auto reconnect options (default undefined)
+      autoReconnectOptions: {
+        randomness: 60000,
+      },
+    },
+  },
+  // default logger config
+  loggerConfig: {
+    level: 'debug', // default info
+    format: winston.format.combine(
+      winston.format.timestamp(),
+      winston.format.json(),
+    ),
+    transports: [
+      new winston.transports.Console(),
+      new winston.transports.File({ filename: 'error.log', level: 'error' }),
+      new winston.transports.File({ filename: 'combined.log' }),
+    ],
+  },
 };
 
 const initialPersonState = {
@@ -99,7 +147,7 @@ const petReducer = createReducer<PetState, ActionType, PetActions, Actions>(init
 }, 'ChangePetNameAction'));
 
 const reducer: ActionReducerMap<State, ActionType, Actions> = {
-  version: 1234,
+  version: 0,
   person: personReducer,
   pet: petReducer,
 };
@@ -125,7 +173,3 @@ bizliDb.dispatch({ type: 'ChangePersonNameAction', firstName: 'Franz', lastName:
 bizliDb.dispatch({ type: 'ChangePetNameAction', name: 'Müüsli' });
 
 ```
-
-## migration
-
-
