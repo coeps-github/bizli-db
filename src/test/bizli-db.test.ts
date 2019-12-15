@@ -1,7 +1,7 @@
 import { of } from 'rxjs';
 import { skip, take } from 'rxjs/operators';
 import { BizliDbImpl } from '../bizli-db';
-import { Action, ActionReducerMap, FileHandler, Logger, TypedAction, VersionedState } from '../model';
+import { Action, ActionReducerMap, FileHandler, Logger, ReduxDevToolsExtension, TypedAction, VersionedState } from '../model';
 
 interface State extends VersionedState {
   version: number;
@@ -104,6 +104,13 @@ const expectedSubState2: SubState2 = {
 const LoggerMock = jest.fn<Logger<any>, any>(() => ({
   configure: jest.fn(),
   log: jest.fn(),
+  dispose: jest.fn(),
+}));
+const ReduxDevtoolsExtensionMock = jest.fn<ReduxDevToolsExtension<any, any, any>, any>(() => ({
+  configure: jest.fn(),
+  send: jest.fn(),
+  receive: jest.fn(),
+  dispose: jest.fn(),
 }));
 const FileHandlerMock = jest.fn<FileHandler<any, any, any>, any>((state?: any) => ({
   configure: jest.fn(),
@@ -111,14 +118,14 @@ const FileHandlerMock = jest.fn<FileHandler<any, any, any>, any>((state?: any) =
   loadState: jest.fn(() => of(state)),
   dispose: jest.fn(),
 }));
-const BizliDb = () => new BizliDbImpl(new FileHandlerMock(), new LoggerMock());
+const BizliDb = () => new BizliDbImpl(new FileHandlerMock(), new ReduxDevtoolsExtensionMock(), new LoggerMock());
 
 describe('bizli-db', () => {
 
   describe('configure', () => {
     test('should not apply any state change when file handler returns undefined', done => {
       const mock = new FileHandlerMock();
-      const bizliDb = new BizliDbImpl(mock, new LoggerMock());
+      const bizliDb = new BizliDbImpl(mock, new ReduxDevtoolsExtensionMock(), new LoggerMock());
       bizliDb.loadState();
       bizliDb.select().pipe(take(1)).subscribe(state => {
         done.fail();
@@ -129,7 +136,7 @@ describe('bizli-db', () => {
     test('should apply state change when file handler returns new state', done => {
       const expectedState = { test: 'test' };
       const mock = new FileHandlerMock(expectedState);
-      const bizliDb = new BizliDbImpl(mock, new LoggerMock());
+      const bizliDb = new BizliDbImpl(mock, new ReduxDevtoolsExtensionMock(), new LoggerMock());
       bizliDb.loadState();
       bizliDb.select().pipe(take(1)).subscribe(state => {
         expect(state).toEqual(state);
@@ -144,7 +151,7 @@ describe('bizli-db', () => {
       const reducer = jest.fn(() => expectedState);
       const action = { type: 'test' };
       const mock = new FileHandlerMock();
-      const bizliDb = new BizliDbImpl(mock, new LoggerMock());
+      const bizliDb = new BizliDbImpl(mock, new ReduxDevtoolsExtensionMock(), new LoggerMock());
       bizliDb.reduce(reducer);
       bizliDb.dispatch(action);
       expect(reducer).toHaveBeenCalledWith(undefined, action);
