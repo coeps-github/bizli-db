@@ -5,9 +5,7 @@ import { createReducer, on } from '../helpers';
 import { ActionReducerMap, Config, TypedAction } from '../model';
 
 describe('example-usage', () => {
-
   test('should describe the example usage', done => {
-
     interface State {
       readonly version: number;
       readonly person: PersonState;
@@ -86,10 +84,7 @@ describe('example-usage', () => {
       // default logger config
       loggerConfig: {
         level: 'debug', // default info
-        format: winston.format.combine(
-          winston.format.timestamp(),
-          winston.format.json(),
-        ),
+        format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
         transports: [
           new winston.transports.Console(),
           new winston.transports.File({ filename: 'error.log', level: 'error' }),
@@ -111,20 +106,26 @@ describe('example-usage', () => {
       species: 'Cat',
     };
 
-    const personReducer = createReducer<PersonState, ActionType, PersonActions, Actions>(initialPersonState, on((state, action): PersonState => {
-      return {
-        ...state,
-        firstName: action.firstName,
-        lastName: action.lastName,
-      } as PersonState;
-    }, 'ChangePersonNameAction'));
+    const personReducer = createReducer<PersonState, ActionType, PersonActions, Actions>(
+      initialPersonState,
+      on((state, action): PersonState => {
+        return {
+          ...state,
+          firstName: action.firstName,
+          lastName: action.lastName,
+        } as PersonState;
+      }, 'ChangePersonNameAction'),
+    );
 
-    const petReducer = createReducer<PetState, ActionType, PetActions, Actions>(initialPetState, on((state, action) => {
-      return {
-        ...state,
-        name: action.name,
-      } as PetState;
-    }, 'ChangePetNameAction'));
+    const petReducer = createReducer<PetState, ActionType, PetActions, Actions>(
+      initialPetState,
+      on((state, action) => {
+        return {
+          ...state,
+          name: action.name,
+        } as PetState;
+      }, 'ChangePetNameAction'),
+    );
 
     const reducer: ActionReducerMap<State, ActionType, Actions> = {
       version: 0,
@@ -137,14 +138,22 @@ describe('example-usage', () => {
       reducer, // either reducer function or reducer map
     });
 
-    bizliDb.select(state => state?.person, (a, b) => a?.lastName === b?.lastName)
+    bizliDb
+      .select(
+        state => state?.person,
+        (a, b) => a?.lastName === b?.lastName,
+      )
       .pipe(take(1))
       .subscribe(person => {
         expect(person.firstName).toBe('Franz');
         expect(person.lastName).toBe('Hugentobler');
       });
 
-    bizliDb.select(state => state?.pet, (a, b) => a?.name === b?.name)
+    bizliDb
+      .select(
+        state => state?.pet,
+        (a, b) => a?.name === b?.name,
+      )
       .pipe(skip(1))
       .subscribe(pet => {
         expect(pet.name).toBe('Müüsli');
@@ -152,7 +161,5 @@ describe('example-usage', () => {
 
     bizliDb.dispatch({ type: 'ChangePersonNameAction', firstName: 'Franz', lastName: 'Hugentobler' });
     bizliDb.dispatch({ type: 'ChangePetNameAction', name: 'Müüsli' });
-
   }, 99999999);
-
 });

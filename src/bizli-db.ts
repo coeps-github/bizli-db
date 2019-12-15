@@ -17,7 +17,8 @@ import {
   VersionedState,
 } from './model';
 
-export class BizliDbImpl<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>, TLoggerConfig> implements BizliDb<TState, TActionType, TAction> {
+export class BizliDbImpl<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>, TLoggerConfig>
+  implements BizliDb<TState, TActionType, TAction> {
   private config: BizliDbConfig;
   private reducer: ActionReducer<TState, TActionType, TAction>;
   private actions: BehaviorSubject<TAction | undefined>;
@@ -68,19 +69,22 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
 
   loadState() {
     this.fileLoadLatch = new AsyncSubject();
-    this.fileHandler.loadState().subscribe(state => {
-      this.logger.log({ level: 'debug', name: 'bizli-db StateLoaded', message: JSON.stringify(state) });
-      if (state) {
-        this.logger.log({ level: 'debug', name: 'bizli-db StateChanged (loadState)', message: JSON.stringify(state) });
-        this.states.next(state);
-      }
-      this.fileLoadLatch.next();
-      this.fileLoadLatch.complete();
-    }, error => {
-      this.logger.log({ level: 'error', name: `bizli-db StateLoaded: ${error.name}`, message: error.message, stack: error.stack });
-      this.fileLoadLatch.next();
-      this.fileLoadLatch.complete();
-    });
+    this.fileHandler.loadState().subscribe(
+      state => {
+        this.logger.log({ level: 'debug', name: 'bizli-db StateLoaded', message: JSON.stringify(state) });
+        if (state) {
+          this.logger.log({ level: 'debug', name: 'bizli-db StateChanged (loadState)', message: JSON.stringify(state) });
+          this.states.next(state);
+        }
+        this.fileLoadLatch.next();
+        this.fileLoadLatch.complete();
+      },
+      error => {
+        this.logger.log({ level: 'error', name: `bizli-db StateLoaded: ${error.name}`, message: error.message, stack: error.stack });
+        this.fileLoadLatch.next();
+        this.fileLoadLatch.complete();
+      },
+    );
   }
 
   reduce(reducer: ActionReducer<TState, TActionType, TAction> | ActionReducerMap<TState, TActionType, TAction>) {
@@ -89,28 +93,29 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
   }
 
   dispatch(action: TAction) {
-    this.fileLoadLatch.pipe(
-      take(1),
-      concatMap(() =>
-        this.states.pipe(
-          take(1),
-        ),
-      ),
-    ).subscribe(state => {
-      const newState = this.reducer(state, action);
+    this.fileLoadLatch
+      .pipe(
+        take(1),
+        concatMap(() => this.states.pipe(take(1))),
+      )
+      .subscribe(
+        state => {
+          const newState = this.reducer(state, action);
 
-      this.logger.log({ level: 'debug', name: 'bizli-db ActionDispatched (dispatch)', message: JSON.stringify(action) });
-      this.logger.log({ level: 'debug', name: 'bizli-db StateChanged (dispatch)', message: JSON.stringify(newState) });
+          this.logger.log({ level: 'debug', name: 'bizli-db ActionDispatched (dispatch)', message: JSON.stringify(action) });
+          this.logger.log({ level: 'debug', name: 'bizli-db StateChanged (dispatch)', message: JSON.stringify(newState) });
 
-      this.actions.next(action);
-      this.states.next(newState);
-      this.effects.next({ action, state: newState });
+          this.actions.next(action);
+          this.states.next(newState);
+          this.effects.next({ action, state: newState });
 
-      this.fileHandler.saveState(newState);
-      this.reduxDevToolsExtension.send(action, newState);
-    }, error => {
-      this.logger.log({ level: 'error', name: `bizli-db ActionDispatched / StateChanged: ${error.name}`, message: error.message, stack: error.stack });
-    });
+          this.fileHandler.saveState(newState);
+          this.reduxDevToolsExtension.send(action, newState);
+        },
+        error => {
+          this.logger.log({ level: 'error', name: `bizli-db ActionDispatched / StateChanged: ${error.name}`, message: error.message, stack: error.stack });
+        },
+      );
   }
 
   select<TSubState>(select?: Select<TState, TSubState>, compare?: Compare<TSubState>): Observable<TSubState>;
@@ -126,7 +131,7 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
         this.states.pipe(
           takeUntil(this.destroy),
           filter(state => !!state),
-          map(state => select ? select(state || {} as TState) : state || {} as TState),
+          map(state => (select ? select(state || ({} as TState)) : state || ({} as TState))),
           filter(subState => !!subState),
           distinctUntilChanged(compare),
         ),
@@ -142,7 +147,7 @@ export class BizliDbImpl<TState extends VersionedState, TActionType extends stri
         this.effects.pipe(
           takeUntil(this.destroy),
           filter(effect => !!effect && actions.includes(effect.action.type)),
-          map(effect => effect || {} as Effect<TState, TActionType, TAction>),
+          map(effect => effect || ({} as Effect<TState, TActionType, TAction>)),
         ),
       ),
     );

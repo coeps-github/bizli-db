@@ -5,8 +5,9 @@ import { Action, BizliDb, BizliDbFactoryConfig, TypedAction, VersionedState } fr
 import { ReduxDevtoolsExtensionImpl } from './redux-devtools-extension';
 import { WinstonLogger } from './winston-logger';
 
-export function bizliDbFactory<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>>
-(config?: BizliDbFactoryConfig<TState, TActionType, TAction>): BizliDb<TState, TActionType, TAction> {
+export function bizliDbFactory<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>>(
+  config?: BizliDbFactoryConfig<TState, TActionType, TAction>,
+): BizliDb<TState, TActionType, TAction> {
   const logger = new WinstonLogger();
   const reduxDevToolsExtension = new ReduxDevtoolsExtensionImpl<TState, TActionType, TAction, winston.LoggerOptions>(logger);
   const fileHandler = new FileHandlerImpl<TState, TActionType, TAction, winston.LoggerOptions>(logger);

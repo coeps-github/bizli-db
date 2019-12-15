@@ -43,7 +43,7 @@ export interface FileHandlerConfig<TState extends VersionedState> {
 
 export interface ReduxDevToolsExtensionConfig {
   readonly enabled?: boolean; // default false
-  readonly remotedev?: ReduxDevToolsExtensionRemoteDevConfig
+  readonly remotedev?: ReduxDevToolsExtensionRemoteDevConfig;
 }
 
 export interface ReduxDevToolsExtensionRemoteDevConfig {
@@ -54,7 +54,7 @@ export interface ReduxDevToolsExtensionRemoteDevConfig {
   readonly autoReconnect?: boolean; // default true
   readonly autoReconnectOptions?: {
     readonly randomness?: number; // default 60000
-  }
+  };
 }
 
 export interface FileHandler<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
@@ -98,32 +98,37 @@ export interface Action {
 }
 
 export interface TypedAction<TActionType extends string> extends Action {
-  readonly type: TActionType
+  readonly type: TActionType;
 }
 
 export interface On<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
-  readonly reducer: ActionReducer<TState, TActionType, TAction>,
-  readonly types: TActionType[]
+  readonly reducer: ActionReducer<TState, TActionType, TAction>;
+  readonly types: TActionType[];
 }
 
 export interface OnSubState<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
-  readonly reducer: SubStateActionReducer<TSubState, TActionType, TAction>,
-  readonly types: TActionType[]
+  readonly reducer: SubStateActionReducer<TSubState, TActionType, TAction>;
+  readonly types: TActionType[];
 }
 
-export type ActionReducer<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> =
-  (state: TState | undefined, action: TAction) => TState;
+export type ActionReducer<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> = (
+  state: TState | undefined,
+  action: TAction,
+) => TState;
 
 export type ActionReducerMap<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> = {
   [p in keyof Omit<TState, 'version'>]: SubStateActionReducer<Omit<TState, 'version'>[p], TActionType, TAction>;
-} & VersionedState;
+} &
+  VersionedState;
 
-export type SubStateActionReducer<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> =
-  (state: TSubState | undefined, action: TAction) => TSubState;
+export type SubStateActionReducer<TSubState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> = (
+  state: TSubState | undefined,
+  action: TAction,
+) => TSubState;
 
 export interface Effect<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>> {
-  readonly state: TState,
-  readonly action: TAction,
+  readonly state: TState;
+  readonly action: TAction;
 }
 
 export type Migration<TState extends VersionedState> = MigrationTargetVersion & MigrationFunctions<TState>;
@@ -142,12 +147,16 @@ export interface ReduxDevToolsExtensionAction<TState> {
   readonly instanceId: string;
   readonly type: 'DISPATCH' | 'ACTION';
   readonly state: TState | undefined;
-  readonly action: {
+  readonly action:
+    | {
     readonly type: ReduxDevToolsExtensionActionType;
-  } | string;
-  readonly payload: {
+  }
+    | string;
+  readonly payload:
+    | {
     readonly type: ReduxDevToolsExtensionActionType;
-  } | string;
+  }
+    | string;
 }
 
 export type ReduxDevToolsExtensionActionType = 'RESET' | 'COMMIT' | 'ROLLBACK' | 'JUMP_TO_STATE' | 'JUMP_TO_ACTION' | 'TOGGLE_ACTION' | 'IMPORT_STATE' | string;

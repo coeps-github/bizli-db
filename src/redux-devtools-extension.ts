@@ -12,7 +12,10 @@ import {
   VersionedState,
 } from './model';
 
-export class ReduxDevtoolsExtensionImpl<TState extends VersionedState, TActionType extends string, TAction extends Action | TypedAction<TActionType>, TLoggerConfig> implements ReduxDevToolsExtension<TState, TActionType, TAction> {
+export class ReduxDevtoolsExtensionImpl<TState extends VersionedState,
+  TActionType extends string,
+  TAction extends Action | TypedAction<TActionType>,
+  TLoggerConfig> implements ReduxDevToolsExtension<TState, TActionType, TAction> {
   private getState: (() => TState | undefined) | undefined;
   private updateState: ((state: TState | undefined) => void) | undefined;
   private dispatchAction: ((action: TAction) => void) | undefined;
